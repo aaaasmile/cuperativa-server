@@ -1,0 +1,335 @@
+== Nuovo server host europe nella primavera 2012
+Il problema è quello di migrare le banche dati di mysql.
+Ho creato uno user igor con adduser
+ho creato un user per mysql col nome igor, ho usato plesk
+L'utente igor va aggiunto al gruppo sudo. Comando: sudo adduser igor sudo
+Ho avuto problemi ad installare la versione 1.8.6 di ruby dalla sorgente.
+Ho provato con la versione 1.8.7 scaricata da http://ftp.ruby-lang.org/pub/ruby/1.8/
+Ho dovuto cambiare il file math.c alla linea 37 il define->defined
+Ho installato i pacchetti gcc e build-essentials, libssl-dev
+Per gem ho installato prima la versione 0.9.5, poi usando il gem  rubygems-update-1.3.1.gem
+ho fatto l'installazione locale usando il setup in /usr/local/lib/gems/1.8/gems/rubygems-update-1.3.1
+lanciato con ruby. Per rails 2.2.2 ho dovuto installare con lo stesso sistema gem 1.3.2
+Per il restore del db cupuserdatadb ho creato prima il db con mysql cosi come l'utente.
+create database cupuserdatadb;
+GRANT ALL PRIVILEGES ON cupuserdatadb.* TO 'cuperativa'@'localhost'  IDENTIFIED BY 'rambo78' WITH GRANT OPTION;
+Poi ho fatto il restore del dump con:
+ mysql -u cuperativa -p  cupuserdatadb < cuperativa_17_12_11.sql
+La stessa cosa col database del blog: blogigordb
+Con eventmachine gem versione 0.12 il server di cuperativa non va. Allora ho provato con la versione 0.10
+come quella che ho usato sul server 92.51.146.97.
+Una volta installato ruby 1.8.7 è risultato lento, evidentemente ha dei problemi coi 64 bit. 
+Allora ho usato rvm che con la versione 1.8.6, mi ha creato una versione di ruby che funziona bene.
+Anche qui la versione 1.8.7 fa andare cuperativa molto piano, quindi è il programma che un bug
+con ruby 1.8.7. Con ruby 1.9.2 non funziona per via delle stringhe coi caratteri accentati.
+Per trovare un file nella directory corrente e nelle sue sotto dir, nella console usare:
+find . -iname 'luzzo.html'
+
+== Rails con passenger
+Per non stare lì ad usare mongrels e rails con apache proxy, provo passenger.
+Va installato come gem. Poi nel .bashrc va messo il path di gem:
+export PATH=/var/lib/gems/1.8/bin:$PATH
+Altrimenti i comandi installati con gem non vengono trovati (vedi https://help.ubuntu.com/community/RubyOnRails)
+poi si lancia da root passenger-install-module-apache2 e segui le istruzioni a video per installare
+i pacchetti mancanti. Poi restart del programma, quando trova tutti i pacchetti compila il modulo per apache.
+Nel file /etc/apache2/apache2.conf ho messo manualmente:
+LoadModule passenger_module /var/lib/gems/1.8/gems/passenger-3.0.11/ext/apache2/mod_passenger.so
+   PassengerRoot /var/lib/gems/1.8/gems/passenger-3.0.11
+   PassengerRuby /usr/bin/ruby1.8
+Come trova passenger l'applicazione rails? Dall'help si evenice:
+The virtual host’s document root must point to your Ruby on Rails application’s public folder.
+Infatti vhost.conf in /var/www/vhosts/cuperativa.invido.it/conf si trova:
+DocumentRoot /var/www/vhosts/lvps46-163-74-64.dedicated.hosteurope.de/site3_cup/cupclassifica/public
+Come sia capito lì non lo so, forse è bastato settare il sottodominio in plesk
+
+
+
+== Hosteurope (vpsgrinta)
+
+Quando si pubblica una nuova versione, bisogna stare attenti che
+girano script che assicurano che il server sia online.
+Allora come si procede?
+Prima cosa bloccare i robots.
+Il checker usa il link ~/cupserver per sapere dove si trova il server
+Per prima cosa togliere questo link, meglio rinominarlo.
+mv ~/cupserver ~/cupserver_old
+Andare nella dir del link del server e stoppare il server, per esempio:
+~/Projects/071/cuperativa/server$ ruby daemon_cup.rb stop
+Andare in una nuova directory, per esempio:
+~/Projects/075
+svn co del server nella directory ~/Projects/075:
+svn co https://secure.svnrepository.com/s_bambino/cuperativa0508
+copiare il file 
+options.yaml dalla versione vecchia e lanciare il server.
+Eventualmente cambiare la directory dei logs usando vi.
+Poi creare di nuovo il link cupserver con la nuova directory
+Il comando da usare è per esempio:
+ln -s /home/igor/Projects/060/cuperativa/server/ cupserver
+
+== FoxLib su vpsgrinta
+La libreria di fox 1.6 non è presente sul server vpsgrinta e quindi
+bisogna stare attenti che sia i robot che il server non abbiano 
+dipendenze con la libreria.
+Sul server 46.163.74.64 sono riuscito ad installare la libreria fox libfox-1.6-dev
+Poi sudo apt-get install libxrandr-dev e quindi sudo gem install fxruby
+che ha installato la versione 1.6.20, la 14 non ha compilato
+
+
+== Reboot
+Se si è fatto un reboot di vpsgrinta, cosa bisogna fare per fare funzionare tutto 
+come era prima?
+- Fare partire il server della cuperativa se non è già partito in automatico. Comando: 
+~\bin\go_cuperativa.sh
+-  Fare partire l'applicazione web. Come? Andare nella directory ~\wwwclassifica e 
+lanciare i comandi:
+export RAILS_ENV=production
+mongrel_rails start -d -p 8001
+- Fare partire i robots (script starts_robots.sh):
+/usr/local/bin/ruby /home/igor/robots/src/robots/bot_first/daemon_robot.rb start
+/usr/local/bin/ruby /home/igor/robots/src/robots/bot_tora/daemon_robot.rb start
+
+
+=== Su Armonica
+
+Quando si pubblica una nuova versione del server
+basta:
+1)
+creare una nuova directory tipo
+/home/samba/test/cup_ver_051
+
+2)
+fare il checkout
+svn co https://secure.svnrepository.com/s_bambino/cuperativa0508 cuperativa
+
+3) 
+Copiare il file delle informazioni server da una vecchia versione
+Se si vuole un funzionamento in parallelo, cambiare i dati.
+Per esempio usare il file:
+/home/samba/test/cup_ver_050/cuperativa/network/server/options.yaml
+
+4)
+Cambiare il file /etc/rcS.d/S99cuperativa oppure se la directory del server
+non è cambiata, si può cambiare il link:
+/home/igor/samba/cup_prod/cuperativa
+Nota che S99cuperativa è un link allo script /etc/init.d/go_cuperativa.sh.
+In questo modo anche il restart del programma monitorato con crontab
+funziona sulla nuova versione
+
+
+
+== Server Http web
+
+Il programma ha bisogno di una applicazione web per registrare 
+i giocatori e per mostrare le classifiche. Come farla?
+Ho deciso di usare rails e di publicarla usando mongrel su una instanza.
+Il database è mysql, il nome del db: cupuserdatadb.
+Per prima cosa bisogna creare il db:
+mysqladmin -u root -p  create cupuserdatadb
+Oppure meglio:
+mysql -u root -p
+create database cupuserdatadb;
+Ho usato rails 2.1.1
+Ho dovuto aggiornare rubygem in quanto la versione 0.9.5 è troppo vecchia.
+Il comando usato è:
+gem update --system 
+Ora ho la versione 1.3.1
+Se ci sono dei problemi, si può usare il comando update_rubygems 
+che è nel pacchetto rubygems-update
+Su windows 7 il comando update_rubygems non ha funzionato.
+Per fare l'update a gem 1.3.1 ho prima scaricato 
+da rubyforge il gem rubygems-update-1.3.1, poi l'ho installato come gli altri gem.
+Ora non rimane che installarlo perché venga usato al posto di 0.9.2. Come?
+Basta andare nella directory: C:\ruby\lib\ruby\gems\1.8\gems\rubygems-update-1.3.1
+e lanciare ruby setup.rb
+
+Sul server ho bisogno dei binding ruby a mysql.
+Questo avviene installando il gem mysql:
+sudo gem install mysql -v 2.7 --no-rdoc --no-ri 
+Per compilarlo è necessaria la libreria libmysqlclientdev
+sudo apt-get install libmysqlclient15-dev
+Ho avuto il problema che su vpsgrinta (92.51.146.97) non riesco a 
+collegarmi al database usando mysql
+Questo il comando da usare:
+mysql -u admin -p
+Password: rambo78
+Sul server con ip che inizia con 46.xxx ho usato igor al posto di admin.
+Ho creato un nuovo utente per accedere al database. Comando:
+GRANT ALL PRIVILEGES ON cupuserdatadb.* TO 'cuperativa'@'localhost'  IDENTIFIED BY 'rambo78' WITH GRANT OPTION;
+Per vedere quali tabelle sono nel db:
+show tables;
+Per vedere i databases:
+show databases;
+Per selezionare il database:
+use cupuserdatadb;
+Vediamo di avere un plugin per l'autenticazione via mail:
+% sudo gem sources -a http://gems.github.com # (you only need to do this once)
+% sudo gem install rubyist-aasm
+Poi si può lanciare:
+ruby script/plugin install git://github.com/technoweenie/restful-authentication.git
+Ho rails 2.1 quindi rinomino restful-authentication con restful_authentication
+Ora genero il plugin con:
+ruby script/generate authenticated user sessions --include-activation --aasm
+Il codice generato non supporta la localizzazione e l'ho tradotto in modo brutale nel codice.
+Nella controller users ho messo dei befor_filter per limitare le azioni sugli utenti in
+quanto di default ognuno può fare tutto. Per esempio si può sospendere un utente con:
+http://localhost:3000/users/suspend/3
+include AuthenticatedSystem va messo nel 
+ApplicationController. Poi nell'application helper ho messo login_is_needed?
+in modo da creare la barra col login/logout.
+Nel file authenticated_system ho messo il metodo admin? il quale mi dice se l'utente
+corrente è administrator. Ci sono 2 punti in cui la funzione admin? è richiesta: nel 
+controlloer dell'applicazione e nel view helper della stessa. Entrambi rimandano all'
+implementazione nel model. Questa la linea che ho usato:
+current_user ?  current_user.admin? : false
+Solo aaaasmile è admin e questo è fisso nel codice del modello users. Soluzione
+semplice e veloce così si fa senza ad usare la tabella roles. Per il forum vi è una tabella
+moderator che può essere usata per moderare i post.
+
+== SQL comandi per sopravvivere
+mysql -u admin -p
+use cupuserdatadb;
+Vedere la tabella users:
+select login,state from users;
+Cancellare un record con l'id 6
+delete from users where id=2;
+Cancellare tutti gli utenti marcati come stato delete:
+delete from users where state='deleted';
+Lista delle tabelle: show tables;
+Struttura della tabella: describe <table_name>
+Contare i records: select count(*) from invido_guestbooks where published = false;
+Cambiare il valore di un campo nella tabella:
+update invido_guestbooks set published = true where published = false;
+
+* Cambiare la password dell'utente admin
+Lanciare: mysql -u admin -p
+digitare la passowrd vecchia e digitare la linea seguente, dove rambo78
+rappresenta la nuova password.
+SET PASSWORD FOR 'admin'@'localhost' = PASSWORD('rambo78');
+
+== Backup del database
+Un ssh con user igor
+Poi digitato il comando:
+mysqldump -u cuperativa -p cupuserdatadb > cupuserdatadb_28_09_2010.sql
+Il backup di tutti i databases:
+mysqldump -u admin -p --all-databases > alldb_17_12_2011.sql
+e al prompt si mette la solita password
+Per il backup del blog usare:
+mysqldump -u igor -p blogigordb > blogigordb_02_03_12.sql
+Per il restore (per esempio del db bambino_invidositeproduction) usare:
+mysql -u bambino_bambino -p bambino_invidositeproduction < bambino_invidositeproduction_24_10_2012.sql
+
+
+== Mongrel e apache su vpsgrinta
+Per fare il deploy sul server vpsgrinta, ho creato un subdomain:
+cuperativa.invido.it
+L'ho fatto usando virtuozzo su vpsgrinta. Aruba ricorda che
+"I sottodomini creati tramite questa procedura saranno visibili solo se è attivo il record corrispondente sui nameservers autoritativi."
+Quindi usando admin.invido.aruba.it ho messo il nuovo host cuperativa sotto la gestione dns.
+L'ip è quello di vpsgrinta. Ora l'indirizzo http://cuperativa.invido.it è raggiungibile dal browser.
+
+Le pagine web statiche vanno a finire su:
+/var/www/vhosts/invido.it/subdomains/cuperativa/httpdocs
+In ogni modo la strategia è quella di avere la mia applicazione lanciata con
+mongrel_rails su una porta la 8001 e poi rediretta da apache2 sulla porta 80.
+Come: ho seguito le istruzioni provenienti da:
+http://mongrel.rubyforge.org/wiki/Apache
+Bisogna usare la sezione apache 2.0 senza proxy_balancer. Vedi blog su:
+http://times.usefulinc.com/2006/09/13-mongrel-apache20
+
+== Problemi con apache
+Su vpsgrinta ho la versione 2.0.51, la quale non ha proxybalancer. Non aveva neanche caricato
+il modulo proxy (mod_proxy). Per abilitare il modlulo proxy, ho usato il comando a2enmod
+I moduli vengono caricati usanto il contenuto della directory /etc/apache2/mods-enabled
+Per cambiare i settings del sito cuperativa.invido.it, ho cambiato il file di configurazione
+httpd.include nella dir /var/www/vhosts/invido.it/conf
+Da notare che il titolo httpd.include suggerisce di editare un altro file nel sottodominio.
+Non l'ho fatto in quanto non riesco a cambiare la sottodirectory dove vengono prese i documenti.
+Infatti quando ho creato un nuovo sottodomino, virtuozzo l'ha sovrascritto e ho perso il file funzionante
+Dopo molte ore sono riuscito a ricrearlo. Ora l'ho salvato anche a livello locale:
+/home/igor/hosteurope/httpd.include_OK_con_blog_e_cuperativa
+Ho dovuto cambiare anche il file /etc/apache2/mods-enabled/proxy.conf (vedi sotto)
+
+== No route:
+http://groups.google.com/group/rubyonrails-talk/browse_thread/thread/bda160066fd24663/91b9254e05fe1656
+Il problema era dovuto al file httpd.include. La linea che passa il comando da apache a mongrel
+in modo corretto è:
+  RewriteRule ^/(.*)$ http://localhost:8001%{REQUEST_URI}   [P,QSA,L]
+
+== apache error client denied by server configuration: proxy:http://localhost
+Come perdere 4 ore di tempo ricevendo l'errore riportato sopra.
+Il problema è nel file /etc/apache2/mods-enabled/proxy.conf
+Questa la sezione da usare:
+        <Proxy *>
+                Order deny,allow
+                Deny from all
+                #Allow from .your_domain.com
+                Allow from all
+        </Proxy>
+
+
+
+== Update e deploy
+Non dimenticarsi di settare l'env su production. Basta lanciare il comando:
+export RAILS_ENV=production
+Andare nella directory ~/wwwcupclassifica e lanciare il classico:
+svn update
+Poi lanciare l'applicazione con 
+mongrel_rails restart
+Se l'applicazione non è partita, allora usare il comando per farla partire in un daemon:
+mongrel_rails start -d -p 8001
+(l'opzione -d sta per demonize, mentre -p è la porta)
+
+== Email
+Interessante il fatto è che durante le prove per registrare degli utenti
+le email vengono mandate senza configurare l'account. Questo è dovuto al fatto
+che vpsgrinta ha un demone per mandare le email. Esso viene usato da action mailer
+di default quando nessuna mail è configurata. Quindi si fa senza confirare l'account email.
+
+== Account Robot
+Ho creato 2 account per i robots. Essi sono:
+login: robot
+login: robot_tora
+login: maestro
+password per tutti: robot78
+
+Per i robots su vpsgrinta ho creato un link simbolico così fatto:
+ln -s /home/igor/Projects/robots/cuperativa0508/ robots
+Questo per avere l'update solo una directory che riguardano i robots.
+I robots si trovano poi nella sottodir src/robots
+Per aggiornare i robots, andare nella directory ~/robots e lanciare 
+svn update
+Poi in ~/bin lanciare
+./restart_robots.sh
+
+== Copiare file da vpsgrinta a frank
+Quando il server è in funzionamento, mi interessano dei file di log
+da copiare sul mio computer locale. Come? Con scp.
+Ecco per esempio il comando che ho usato su frank per copiare una 
+partita salvata su vpsgrinta. Il comando l'ho lanciato nella directory locale
+di destinazione:
+scp vpsgrinta:/home/igor/cupserver/logs/2009_06_22/s204_gc1_2009_06_22_21_23_42-savedmatch.yaml .
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

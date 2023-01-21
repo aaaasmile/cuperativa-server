@@ -1,0 +1,26 @@
+---
+# list of supported and requested games (Briscola, Mariazza, Spazzino, Scopetta)
+:engine: 
+  - :briscola_game
+  - :mariazza_game
+  - :spazzino_game
+  - :tombolon_game
+  - :scopetta_game
+  - :tressette_game
+:scopetta_game: 
+  :alg_level: :master
+:tressette_game: 
+  :alg_level: :master
+:login: marco
+:join_curr_game: false
+:playfor_classment: false
+:password: "<some password>"
+#:game_bot_classname: "GameBasebot"
+:debug_server_messages: false
+:server_ip: 127.0.0.1
+:server_port: 20606
+#:log_level: :develop
+:log_level: :production
+:wait_time_info: 
+  :enabled: true
+  :havetoplay_time: 0.6

@@ -1,0 +1,234 @@
+== Nota 
+Per leggere bene questo documento usare il carattere monospace 11.
+
+== Spazzino
+Adattamento del gfx, core e algoritmo al gioco dello spazzino partendo
+dal gioco della briscola
+
+== Core
+
+Bisogna adattare l'interfaccia AlgCpuPlayerBase senza stravolgerla.
+Si può usare il concetto di Giocata per la smazzata, Mano per la carta
+giocata. Quando si hanno giocato tutte e tre le carte, allora entra in gioco
+la chiamata onalg_pesca_carta, in questo caso con 3 carte.
+
+onalg_newmano diventa un sinonimo di onalg_have_to_play, mentre
+onalg_manoend definisce quello che è successo quando un giocatore ha
+giocato onalg_player_has_played.
+
+Pesca la carta deve avvenire dopo che tutti e due i giocatori hanno giocato
+le loro 3 carte. Le carte pescate sono allora 3.
+
+Tutti gli altri stati rimangono uguali.
+
+== Interfaccia algoritmo (AlgCpuPlayerBase) sul server
+
+* def onalg_new_giocata(carte_player) end
+carte_player è un array con le carte del giocatore più le carte in tavola.
+L'interfaccia del nal_server_alg non necessita cambi.
+  
+* def onalg_new_match(players) end
+Qui vengono mandati un array di giocatory via yaml, più le opzioni e 
+il nome del gioco.
+L'interfaccia del nal_server_alg non necessita cambi.
+  
+**** def onalg_newmano(player) end
+Qui viene mandato un array con il nome del giocatore al primo posto 
+piú le carte in tavola nel resto. Qui l'interfaccia è diversa, in quanto
+nella base vi è solo un elemento player, senza array
+
+* def onalg_have_to_play(player,command_decl_avail) end
+command_decl_avail è un array vuoto, mentre player rimane lo stesso.
+L'interfaccia del nal_server_alg non necessita cambi.
+
+**** def onalg_player_has_played(player, card) end
+Mentre player rimane uguale, l'elemento card cambia.
+Esso diventa un array fatto così: [card, [card_taken]]
+Nel caso nessuna carta venga presa, card_taken è un array vuoto.
+Viene trasmessa la versione YAML di card.
+
+* def onalg_player_has_declared(player, name_decl, points) end
+non usata.
+L'interfaccia del nal_server_alg non necessita cambi.
+
+* def onalg_pesca_carta(carte_player) end
+Qui erano già usato un array per carte_player, anche se veniva
+pescata una sola carta
+L'interfaccia del nal_server_alg non necessita cambi.
+
+* def onalg_manoend(player_best, carte_prese_mano, punti_presi) end
+Viene già usato yaml.
+L'interfaccia del nal_server_alg non necessita cambi.
+
+* def onalg_giocataend(best_pl_points) end
+Viene già usato yaml.
+L'interfaccia del nal_server_alg non necessita cambi.
+
+* def onalg_game_end(best_pl_segni) end
+Viene già usato yaml.
+L'interfaccia del nal_server_alg non necessita cambi.
+
+* def onalg_player_has_changed_brisc(player, card_briscola, card_on_hand) end
+non usata.
+L'interfaccia del nal_server_alg non necessita cambi.
+
+* def onalg_player_has_getpoints(player, points) end
+non usata.
+L'interfaccia del nal_server_alg non necessita cambi.
+
+* def onalg_player_cardsnot_allowed(player, cards) end
+non usata.
+L'interfaccia del nal_server_alg non necessita cambi.
+
+
+== Gfx
+
+Negli altri giochi, Gfx mostra la carta giocata per un determinato periodo,
+bloccando la coda degli eventi del core. Nello spazzino si può mettere un delay
+tra onalg_player_has_played e onalg_manoend in modo da mostrare prima la 
+carta giocata e poi l'azione che ne segue. 
+
+
+       .-------. .-------. .-------.
+       | Posizione dopo mano_end   | (POS2)
+       |   `.  | |       | |       |
+       `-----`.' `-------' `-------'
+              ++------+
+              | `.    |
+              | ,'`.  |Posizione dopo has_played (POS1)
+              ,'------+
+   +-------,-"-------+ +-------+
+   |     ,'| |       | |       |
+   |   ,'Carta giocata dal giocatore
+   |       | |       | |       |
+   +-------+ +-------+ +-------+
+
+Per completare il riquadro occorrono 10 carte giocate vuote (pos2) e 2 per le 
+giocate parziali del giocatore (pos1).
+Occorre segnare una carta selezionata, per esempio usando un contorno colorato.
+
+
+== Sviluppo
+
+Come prima cosa è meglio sviluppare il core. Per questo uso test_core_spazzino
+che simula la partita  tra due algoritmi che giocano le carte a caso.
+
+== Stato
+
+- Pulsante per mostrare l'ultima carta giocata sul tavolo
+- Migliorare il dialogbox che riepiloga i punti della smazzata
+
+
+[pubblicato il 20.11.08 con la versione 0.6.0]
+Core:
+Il test funziona fino a fine giocata [OK].
+Distribuzione delle carte casuale. [DONE]
+Manca il check del bager [DONE]. 
+Manca il calcolo del punteggio: onori, carte, spade e napula. [DONE]
+Variabile @punteggio_segno. [DONE]
+Una partita nel test match funziona. Core spazzino è code complete.
+Da vedere (sembra che non funzioni):
+- picula [DONE]
+- caso picula e spazzino assieme [DONE]
+- giocata end gfx non va e il mazzo viene mostrato ancora [DONE]
+- la traiettoria delle carte giocate non è ottimale [DONE]
+- la carta giocata alla fine dell'animazione scompare per 1-2 secondi [DONE]
+- Man mano che il gioco continua, le carte sul tavolo si spostano a destra [DONE]
+- Manca l'animazione intermedia per la scelta multipla delle prese [DONE]
+- L'ultimo che ha effettuato la presa deve prendere il tavolo e non 
+l'ultimo che ha giocato [DONE]
+- Il mazziere deve cambiare in senso antiorario alla fine della smazzata e non a caso [DONE]
+- A smazzata finita il mazzo non cambia posizione [DONE]
+
+ALg:
+dovrebbe cercare di fare delle picule e non giocare a caso
+
+
+[pubblicato il 24.12.08 con la versione 0.6.1]
+== Scopetta [DONE]
+
+Riferimento: http://it.wikipedia.org/wiki/Scopa_(gioco)
+
+- Lo spazzino viene preso come base [DONE]
+* Ci sono delle regole nel core da cambiare:
+   - cambiare la stringa che riepiloga il punteggio, dove compare denari, 
+onori, primiera, carte [DONE]
+   - vale la primiera: chi fa più 7, oppure più 6 in caso di parità. Se anche i 6 sono pari la primiera non viene assegnata. C'è la regola del punteggio con la carta dal massimo valori sui quattro segni. Qui serve assegnare per ogni carta il valore primiera (il sette vale 21 punti, il sei vale 18 punti, l'asso ne vale 16, il cinque ne vale 15, il quattro 14 punti, il tre 13 punti, il due 12 punti, le figure 10 punti). [DONE] 
+   - onori del mazzo sono 4 e non 7 [DONE]
+   - target 11 punti e non 21 [DONE]
+   - la presa del fante (vale anche per cavallo e re) vale 8, il quale può prendere il 5 e il 3 e non solo il fante come nello spazzino [DONE]
+   - si contano i denari e non le spade [DONE]
+   - non vale il due di spade e il fante di spade [DONE]
+   - punti carte 1 (non assegnato in caso di pareggio) [DONE]
+   - punti denari 1 punto (non assegnato in caso di pareggio) [DONE]
+   - napola a denari opzinale [DONE]
+   - Le combinazioni ammesse hanno delle restrizioni: la combinazione ammessa è quella che ha meno carte [DONE]
+
+
+== Tombolon
+
+:protocollo
+Usa il nuovo messaggio onalg_gameinfo per informare quale carta va mostrata nel
+mazzo. Dettaglio info: {:deckcard => :_Ab }
+
+
+:gfx
+- Click sulle carte del tavolo non funzionano dopo la distribuzione a 6 carte
+- Una carta del mazzo rimane sul tavolo alla fine [DONE]
+- L'ultima carta del mazzo va messa in vista e distribuita al mazziere alla fine [DONE]
+
+: Core 
+- Nella partita del testgfx, il sette prende il 7 e non viene offerta la combinazione 5+2
+  un resto della scopa? less_card_combi option è attiva [DONE]
+- bug fix on test_core_tonbolon [DONE]
+- Lo spazzino viene preso come base [DONE]
+- Le picule non ci sono [DONE]
+- I bager sono la scopa di colore con punteggio diverso [DONE]
+- Lo spazzino viene soppiantato dalla scopa con punteggio diverso [DONE]
+- Tombolon: 10 spade + 6 onori + vittoria [DONE]
+- Target 31 punti [DONE]
+- Distribuzione carte: prima, seconda e terza: quattro carte per ogni giocatore [DONE]
+- Distribuzione carte: quarta: 6 carte per ogni giocatore [DONE]
+- Punti mazzo 6 sempre assegnati [DONE]
+- Se una squadra fà tutti e 6 i punti di mazzo, raddoppia a 12 punti [DONE]
+- L'ultima carta giocata nella smazzata può fare punti per Scopa di Colore ma non punti per Scopa. [DONE]
+
+Tombolon 
+Si gioca a Rovigo con 40 Carte Venete. 
+Con quattro giocatori si danno 4 carte a testa e 4 in tavola. Il tallone con le carte non distribuite si mette rovesciato sul tavolo con l'ultima carta in vista, che alla fine sarà assegnata al mazziere. Finito di giocare le carte della prima distribuzione, si procede ad una seconda distribuzione di altre 5 carte a testa. 
+Con due giocatori si danno 4 carte a testa e 4 in tavola. Finite, si procede ad una seconda, e poi ad una terza distribuzione sempre di 4 carte a testa. La quarta ed ultima distribuzione è con 6 carte a testa. 
+Si vince a 31 punti. 
+I punti di mazzo sono 6 e vengono sempre tutti assegnati, tre carte importanti sono Onori:   
+Carte                    2 punti   (in caso di parità, 20 carte a squadra, i 2 punti sono dati al primo di mano) 
+Spade                   1 punto   (in caso di parità, 5 Spade a squadra, il punto è dato al primo di mano) 
+Il 2 di Spade         1 punto  
+Il 7 di Denari        1 punto 
+Il Fante di Spade   1 punto 
+Se una squadra fà tutti e 6 i punti di mazzo, raddoppia a 12 punti. 
+Se una squadra fà i 6 punti di mazzo e tutte e tutte le 10 carte di Spade fà Tombolon e vince la partita. Ma è molto molto raro. 
+Il Fante prende solo un altro Fante, se fà Scopa ottiene 3 punti. Così il Cavallo con 4 punti di Scopa, ed il Re  con 5 punti di Scopa. 
+Se un 7 fà Scopa ottiene 7 punti di Scopa, il 6 ottiene 6 punti di Scopa e così via, fino all'Asso con 1 punto di Scopa. 
+Una presa con almeno 3 carte dello stesso seme è una Scopa di Colore e ottiene lo stesso punteggio della Scopa. 
+Esempio: il 7 di Coppe prende il 2 di Coppe e il 5 di Coppe, abbiamo una Scopa di Colore con 7 punti. 
+Se fà anche Scopa i punti raddoppiano: 7 per la Scopa e 7 per la Scopa di Colore. 
+Si può scegliere tra prendere una carta dello stesso valore oppure una somma di carte, ma c'è obbligo di presa. 
+Esempio: gioco il 7 di Denari, sul tavolo ci sono il 2 di Coppe il 5 di Bastoni il 7 di Bastoni e l'Asso di Spade. Posso scegliere il 2 e il 5, oppure il 7. 
+Le carte restanti a fine smazzata sono del giocatore che ha fatto l'ultima presa. 
+L'ultima carta giocata nella smazzata può fare punti per Scopa di Colore ma non punti per Scopa. 
+A fine smazzata si può fare la Napoli a Spade. Asso, 2 e 3 di Spade danno 3 punti, con il 4 di Spade in sequenza continua danno 4 punti, e così via. 
+   Nota. Il Tombolon si gioca a Padova con 52 carte Venete. 
+In ogni seme sono presenti le carte numerali 8, 9 e 10. 
+Quindi se un 10 fà Scopa ottiene 10 punti di Scopa. Se fà una Scopa di Colore ottiene 10 punti di Scopa di Colore, E così via. 
+Il 10 di Denari è un Onore e sostituisce il 7 di Denari. 
+Le 13 carte di Spade sono in numero dispari, e quindi danno sempre un vincitore. 
+La partita termina a 51 punti.  
+      Domenico Starna  
+
+
+ 
+
+
+
+
+ 
+

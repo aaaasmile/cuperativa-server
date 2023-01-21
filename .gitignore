@@ -1,0 +1,4 @@
+/tmp
+*.pid
+server/options.yaml
+robots/bot_sample/robot.yaml

@@ -1,0 +1,117 @@
+Cuperativa.invido.it
+
+== Aggiornameto
+- Andare nella directory ~\wwwcupclassifica
+- lanciare un svn update
+- se c'è bisogno di aggiornare il db, fare prima un backup:
+	mysqldump -u admin -p cupuserdatadb > cupuserdatadb_01052010.sql
+- lanciare, se serve, per creare nuove tabelle
+    rake db:migrate
+- restart del server (azioni fatte all'interno della directory ~\wwwcupclassifica)
+   mongrel_rails stop 
+   export RAILS_ENV=production
+   mongrel_rails start -d -p 8001
+- Aggiornare i contenuti delle pagine main e about usando, per esempio i contenuti html
+descritti nel file: contenuti_html_cupclass.txt
+
+NOTA: il restart di mongrel è necessario, non è come nello sviluppo che non serve sempre.
+Se vuoi avere che un nuovo utente registrato sia in stato pending, rimuovere le linee commentate
+da ISS nel file user_controller.rb
+
+Cosa manca:
+• Link per le pagine non trovate non va bene (prova con /games per vedere il risultato)
+• Mettere l'icona piccola in alto nel browser come quella di invido
+
+
+DONE:
+•  traduzioni delle email mandate quando viene resettata la password
+• Login: andare alla pagina principale del forum quando il login è effettuato
+• Classifica:
+∘  per prima cosa selezionare il tipo di gioco [DONE]
+∘ poi mostrare la classifica generale [DONE]
+• Durante la registrazione del nuovo account va messo il campo per il nome completo e il genere della persona [DONE]
+• Qualche icona per mostrare la registrazione e il download sulla pagina principale [DONE]
+
+
+== Rails sviluppo appplicazione LOG
+Come editor ho cominciato ad usare scribes. Con Nautilus come navigatore, nel quale
+si usa solo la parte di destra nel dettaglio (molto compatta).
+
+== Forum
+Sto integrando il forum savage_beast
+http://www.williambharding.com/blog/rails/savage-beast-20
+Copiare i files di app come suggerisce l'help non basta. Ho messo lo routes con le risorse.
+Poi ho messo user_init nella /lib principale, cambiando il namespace.  
+Stare attenti che la migrazione non si deve chiamare come il modello. Il nome della migrazione
+poi deve avere lo stesso nome nel file.
+Per navigare indietro nelle navigazioni ho usato: db:rollback
+Per mettere i dati in una tabella ho usato una migrazione apposita, nella creazione della
+tabella non lasciava mettere elementi.
+Ho tolto i voices in quanto non son riuscito a fare andare paginate e rails 2.2.2
+Per avere anche l'italiano ho creato la directory lang, dove ho messo un nuovo file
+it.yml con le traduzioni. Il plugin usato è Gibberish. Poi alla fine del file environment.rb
+si mette la linea: Gibberish.current_language = :it
+per abilitare l'italiano come lingua di default.
+
+=> Problema con will_paginate:
+Ho avuto numerosi problemi con il method_missing_without_paginate.
+Ho provato a correggere di persona la copia del plugin compreso nei sorgenti 
+di savage_beast, ma senza successo. Il plugin si fonde con active_record
+senza avere un'interfaccia ben precisa, questo crea dei problemi quando active_record
+cambia. Allora ho messo l'ultima versione del plugin will_paginate che sembra funzionare
+E' mancato solo la funzione 
+def page_count
+      @total_pages
+end
+nel file collection.rb del plugin. Questo metodo è sparito dal plugin, ma è usato 
+in beast.
+
+=> post paginazione
+I post nel forum vengono paginati con un numero di 25. In 
+/app/controllers/topics_controller.rb:        @posts = @topic.posts.find(:all, :order => 'created_at desc', :limit => 25)
+viene settato il numero
+
+== Nuova versione del programma cuperativa
+
+Il content della main page è messo nel db e va cambiato usando l'account dell'administrator
+e va poi cambiato dal link forum.
+[obsoleto]
+Bisogna aggiornare il link nel file application_helper.rb. In cuperativa_url va
+messo il link al nuovo setup.
+
+== Aggiungere un nuovo gioco nella classifica
+Va aggiunta la tabella della classifica nel progetto rails cupclassifica
+Come?
+Per aggiornare il link delle classifiche:
+in classificas/index.html.erb aggiungere il nuovo link
+Ora va creato lo scaffold del nuovo modello:
+ ruby script/generate scaffold ClassificaBriscolone
+- Togliere il layout generato in app/views/layouts, esempio classifica_tressettes.html.erb
+- Cambiare il controller, come nella briscola, per usare paginate
+- Aggiornare il modello aggiungendo belongs_to :user
+- Togliere i files in più nella view, rimane solo index
+- Aggiornare il file della view index.erb come fatto nella briscola
+- Modificare il file della migrazione per creare la tabella della classifica
+- Lanciare la migrazione con db:migrate
+Ora la nuova classifica sarà funzionante
+
+Andare come amministratore al link:
+http://localhost:3000/cup_games
+e aggiungere il nuovo gioco, nel mio caso il briscolone, anche se non sono sicuro se serve
+veramente.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

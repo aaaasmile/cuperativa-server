@@ -1,0 +1,582 @@
+== Protocollo della rete per cuperativa
+
+1) Connessione al server
+
+C ----- <socket Connect> ----------------- > S
+C <---- Ver: "1.1" ------------------------- S
+C <---- Info: "Benvenuto sul server" ------- S
+C ------ Login: <name user, md5 pass> -----> S
+C <------ Login_ok: <name user> ------------ S
+
+1.a)
+ Comando Ver
+   Questo comando prevede 2 numeri per la versione major.minor.
+   Il major indica un cambio di versione dove è necessario un cambio
+   contemporaneo del client. Il minor sono features che non influenzano
+   il funzionamento di client datati.
+1.b) Controllo versione
+	Il controllo della versione avviene sul lato client. Così il client sa che 
+	è inutile continuare a comunicare col server. Al server non interessa quale
+	client si collega e di che tipo è. 
+
+=== Connessione usando altri provider ==
+
+Se si esegue il login utilizzando un provider esterno come facebook
+si usano altri comandi per il login
+
+C ---------- login3pty_req YAML.dump(hash_info_req) --> S
+C <---------- login3pty_res YAML.dump(hash_info_res) --- S 
+
+L'interfaccia è tenuta generica per supportare diversi provider.
+
+*** Facebook ****
+
+Per effettuare il login usando facebook si procede con la seguente sequenza
+
+C  --- hash_info_req{:type => fb, :state => :init} --> S
+C <--- hash_info_res{ :link => 'http:\\....', type: :fb, :state => :weblogin} -- S
+Qui si esegue il login su facebook via web browser
+C  --- hash_info_req{:type => fb, state => :webloginok, :loginame => '<name>'}  --> S
+C <--- hash_info_res{ :sessionsecret => '002211...', :expires => 3326, 
+        :sessionkey => '2233..', :uid => '362536', type: :fb, :state => 2} --> S	
+
+C <------ Login_ok: <name user> ------------ S
+Nel caso ci siano degli errori questo il messaggio ritornato dal server:
+C <------ login_error: codice, <name user>  ------------ S
+Questi i codici:
+1: Password oppure login errati
+2: Utente già connesso al server
+3: Ospite già connesso al server
+
+
+Nota: se il server non ha salvato la sessione fb, esso risponde sempre
+con una richiesta :weblogin, questo per evitare che si possano rubare 
+le identità utilizzando una sessione non finita di un altro utente.
+La sessione rimane in memoria fino a quando il socket rimane attivo.
+Poi viene cancellata, questo per il motivo descritto sopra.
+
+
+2) Lista tavoli
+Quando un utente si collega ed effettua il login con successo, deve entrare
+nel modo observe sul server, che equivale a mostrare la tabella dei
+giochi sul client. Per fare questo il client fa una richiesta tipo
+pending_games_req. Il server mette il client nella lista degli osservatori
+pending e come risposta manda l'elenco dei pending games.
+Questo elenco viene aggiornato dal server di volta in volta che la situazione
+di un pending game cambia. Quando un giocatore comincia una partita oppure
+si scollega, allora il client esce da questa lista e il server non manda
+più aggiornamenti. Supponendo che una richiesta di gioco non superi i 75
+caratteri, per restare nei 2Kb per ogni messaggio si possono mandare,
+in un colpo solo, al masimo 25 richieste. Questo è limitante, il protocollo
+deve tener conto che ci siano più messaggi concatenati di questo tipo.
+
+C ------ pendig_games_req ----> S
+C <------ pg_list: 0,eof; 33,pioppa,mariazza,<opzioni...>,{galu,toro};35,galu,mariazza,<4 segni, vittoria 41>;
+Una lista vuota viene mandata col comando
+
+C <------ pg_list: 0,empty,empty; ------- S
+Usa il doppio empty per evitare di confondere il nickname empty
+
+Dalla versione 8.0 del protocollo abbia mo la stessa interfaccia in versione yaml
+C ------ pendig_games_req2 ----> S
+C <------ pg_list2:  YAML.dump{ ------- S
+             :type => :pgamelist | :userlist : | :gameviewlist
+             :slice => 0...N
+             :slice_state => :last | :inlist
+             :pgs => [{L'hash è lo stesso del messaggio pg_add2, mentre per gameviewlist vedi la sezione spettatori},..., ]
+             }
+             La slice size in questo caso potrebbe essere di 20 unità
+
+
+      == Nota sul comando pg_list ==
+0 indica quale slice della lista si riferisce, in questo caso il primo 
+eof sta ad indicare che sono stati inviai  tutti i pending games. 
+Se non è il caso si avrà un indice che indica quale pezzo arriverà dopo.
+Ogni record è separato dal punto e virgola(;), mentre ogni campo è separato 
+dalla virgola, come ogni altro comando del protocollo. Siccome nel campo
+opzioni può essere  presente una virgola, è necessario usare i caratteri <>
+per delimitare questo campo. Non ritengo necessario la denominazione
+del tipo di campo nel comando pg_list. Ogni campo è mandatorio e necessario.
+La sequenza usata è: indice, nome user, tipo gioco, opzioni.
+Il campo opzioni, se è vuoto, sarà di sole due lettere <>.
+Il campo dei giocatori collegati è identificato dalle parentesi graffe.
+All'interno del campo giocatori collegati, si trova una lista di utenti
+separata dalla virgola. Il creatore del gioco non è presente in questa
+lista. 
+Se necessario in future versioni del protocollo potranno essere aggiunti dei
+campi. 
+E' necessario mandare anche liste vuote in quanto il client
+potrebbe avere dei dati non validi provenienti da altre sessioni.   
+
+Ora che il client si è registrato nella pending_games list, riceverà dal server
+i messaggi che potranno essere utilizzati per aggiornare questa lista.
+- Rimozione di una richiesta.
+Quando un gioco inizia, esso non fa più parte della lista della richieste dei giochi.
+Il server manda allora questo comando:
+
+C ----------- users_connect_req -------> S
+Richiede la lista degli utenti collegati al server e rimane attivo col monitoraggio
+dei cambiamenti in questa lista
+
+C <------ user_list: 0,eof; pioppa, 1, G, 0;galu,2,P,1000;toro,5,A,1200; --- S
+Lista degli utenti collegati al server. I records sono separati da ; mentre
+i campi da virgola. Il primo campo e' il nick, poi il lag (da 1 scarso a 5 ottimo)
+Poi segue il tipo (G: guest, P: giocatore registrato, A: amministratore).
+Una lista vuota viene mandata col comando:
+C <------ user_list: 0,empty,empty; ------- S
+Usa il doppio empty per evitare di confondere il nickname empty
+
+C <------- user_removed: pioppa ---------------------------------- S
+rimuove un utente dalla list
+
+C <------- user_add: pioppa, 1, G, 0 ---------------------------------- S
+aggiunge un nuovo utente alla lista
+
+C ----------- user_list_unsub -------> S
+rimuove il client dalla lista che monitora gli utenti
+
+C <---------- pg_remove: 33 ---------- S
+Questo per rimuovere la richiesta di indice 33.
+
+Per aggiungerne una nuova (server notifica al client, da non confondere con
+pg_create descritto sotto):
+C <---------- pg_add: 35, pioppa,mariazza,<vittoria 41, 1 segno> ------ S 
+
+Dalla versione 8.0 pg_add diventa obsoleto
+C <-------- pg_add2: YAML.dump({              ------------------ S
+        :index => 35,
+        :user => "Pioppa"
+        :user_type => :user | :computer | :user_female
+        :user_score => 1000
+        :game => "Mariazza"
+        :prive => true/false
+        :class => true/false
+        :opt_game => {:target_points=>{:type=>:textbox, :name=>"Punti vittoria", :val=>21}},
+        :players =>[pioppa]
+                                            })   
+
+
+Gestione indici richieste partite lato server. Quando una partita inizia,
+un'indice si libera per una successiva richiesta. Per evitare problemi
+di aggiornamento col client, si mette quest'indice in coda e verrà riutilizzato
+per ultimo. Per partire si potrebbero usare un massimo di 200 indici. 
+
+Per i giochi che prevedono più di 2 giocatori, il campo utenti collegati
+si deve aggiornare di volta in volta che un giocatre si collega.
+
+Per questo si usa il messaggio
+C <---------- pg_player_conn: 33,pioppa ---------- S
+
+Allo stesso modo se un utente lascia il gioco
+C <---------- pg_player_leave: 33,pioppa ---------- S
+
+3) Crea tavolo gioco
+Il client che desidera creare una nuova richiesta di partita lo può fare col
+seguente comando:
+
+C -------- pg_create:  nome_gioco, opzioni_hash --> S
+Un client può mandare una sola richiesta per tipo di gioco.
+Il campo opzioni_hash è composto da campi separati da ;
+Esempio: target_points_segno=61;num_segni_match=2
+Il messaggio completo (esempio):
+Mariazza,num_segni_match=2;target_points_segno=41
+Se la richiesta non può essere soddisfatta, il server risponde con 
+pg_create_reject: ragione
+Un campo opzionale per opzioni_hash è il campo gioco_private=true
+che contraddistingue un tavolo da gioco privato, dove i giocatori possono
+partecipare solo ad invito.
+
+Per semplificare il parser il messaggio pg_create diveta obsoleto dalla versione 
+del protocollo 8.0. Ora il messaggio pg_create diventa:
+C1 -------- pg_create2: YAML.dump({           :game => gioco_name,
+                                              :prive => {val =>true/false, pin =>"1234"}
+                                              :class => true/false
+                                              :opt_game => {<game specific option hash>}
+                                            })    -----------------------> S
+
+gioco_name è una delle seguenti stringhe (apici non vengono mandati):
+'Mariazza', 'Briscola', 'Spazzino', 'Tombolon', 'Scopetta'
+
+
+Chi ha costruito il gioco, può rimuoverlo con il comando:
+C -------- pg_remove_req: index --------------> S
+La risposta del server sarà come indicata nella sezione 2)
+
+4) Siedi al tavolo e Comincia la partita
+Il client che desidera accettare una nuova richiesta di partita lo può fare col
+seguente comando (C1 è il client 1 che ha creato il gioco, C2 è client 2 che 
+accetta la partita):
+
+C2 (tender) -------- pg_join: index --------------> S
+index è il numero dell'indice della richiesta di partita  mandata con la lista
+delle richieste delle partite.
+
+
+C2 (tender) -------- pg_join_pin: index, pin --------------> S
+index è il numero dell'indice della richiesta di partita  mandata con la lista
+delle richieste delle partite. Pin è il pin settato dal creatore del gioco.
+Questo messaggio serve per fare il join di un pg privato
+
+Ora bisogna informare lo user che ha eseguito la richiesta
+al quale il server manda la richiesta:
+
+
+C1 (Creator) <-------- pg_join_tender: user_name, index_game ----------- S
+
+In questa fase si distinguono due possibili risposte
+(**) Se il client che ha creato il gioco accetta lo sfidante risponde con
+
+C1 (Creator) -------- pg_join_ok: user_name, index_game -----------> S 
+
+Il server risponde al richiedente(tender) con:
+
+C2 (tender) <-------- pg_join_ok: index ----------- S
+
+Tornando alla fase (**) il client che ha creato il gioco può
+rifiutare l'utente che esegue la richiesta, in questo caso il client
+risponde con:
+(***)
+
+C1 (Creator) -------- pg_join_reject: user_name -----------> S
+
+Il server deve allora rispondere al richiedente con:
+
+Nella versione 8.0 il messaggio pg_join_reject di ritorno del server
+viene sostituito con 
+C2 (tender) <-------- pg_join_reject2: YAML.dump({:ix => pg_index, 
+                                         :err_code => error_code}) ----------- S
+Codici errori:
+1: indice gioco non trovato
+2: non e' possibile partecipare ad un gioco creato da se stessi
+3: non e' possibile partecipare al gioco privato 
+4: non e' possibile partecipare: gioco valido per la classifica, disponibile solo per giocatori registrati 
+5: qualcun altro sta cercando di giocare questa partita, spiacenti la richiesta non puo' essere accettata
+6: partita non valida
+7: indice gioco non trovato
+8: Solo il creatore del gioco puo' accettare giocatori
+9: Creatore del gioco disconnesso
+11: creatore del gioco disconnesso
+12: Tender disconnesso 
+
+* < 7.0
+C2 <-------- pg_join_reject: index, ragione indesiderato ----------- S
+
+
+In questo modo la richiesta rimane valida e nella banned list del pendig
+game item sul server ci si aggiunge lo user name dell'utente indesiderato
+
+Quando il server manda al client pg_join_ok esso rimuove il client
+dalla lista degli osservatori delle richieste di partite. Rimuoverà
+anche tutte le ulteriori richieste fatte dai client partecipnti alla partita.
+In un gioco in due come la mariazza, l'inizio della partita è automatico
+con l'invio della richiesta. Ora i messaggi del server seguono l'andamento
+del core del gioco in questione. Se si prevede che il richidente possa
+esercitare un veto sull'utente che vuole accettare la sfida, per esempio con
+una banned list, allora il server esegue un reject del join. Lo stesso accade
+se un'altro utente è stato più veloce nell'accettare la sfida (contemporaneità
+della richiesta) e uno dei due riceverà il reject. Il client che riceve
+il reject interpreta il comando come un pg_remove (vedi sopra) 
+C2 <-------- pg_join_reject: index, ragione -- S 
+
+Non dimenticare di eliminare tutti i pendig game associati ad un utente
+quando egli si scollega dal server.
+
+
+5) Invita un giocatore a partecipare ad un gioco
+Quando un client crea un gioco, può invitare altri utenti al proprio gioco
+
+C1 --------- pg_invite_req: index, user_name_inviter, user_name_invited --> S
+Se il server vede che la richiesta può essere inoltrata allora il client 2 riceve:
+C2 <-------- pg_invite_req: index, user_name_inviter, user_name_invited --- S
+Se C2 accetta la richiesta, allora la risposta è:
+(*)
+C2 --------  pg_invite_rsp_ok: index, user_name_invited ---> S
+Il server rigira la risposta all'invitante
+C1 <--------  pg_invite_rsp_ok: index, user_name_invited --- S 
+A questo punto il gioco può partire come nel caso di pg_join
+Tornando al punto (*) C2 può rifiutare la l'invito. Lo fa con:
+C2 --------  pg_invite_rsp_declined: index, user_name_invited ---> S
+Il server rigira la risposta all'invitante
+C1 <--------  pg_invite_declined: index, user_name_invited, reasoncode --- S 
+
+
+5.1) Liste
+Dalla versione 9.0 del protocollo del server i comandi delle liste vengono 
+unificati in comandi generici LIST2
+
+a) LIST2 : invio della lista
+C <------ list2:  YAML.dump{ ------- S
+             :type => :pgamelist | :userlist : | :gameviewlist
+             :slice => 0...N
+             :slice_state => :last | :inlist
+             :detail => [{L'hash è lo stesso è specifico del tipo di lista]
+             }
+
+b) LIST2_ADD
+C <------ list2_add:  YAML.dump{ ------- S
+             :type => :pgamelist | :userlist : | :gameviewlist
+             :detail => {L'hash è lo stesso è specifico del tipo di lista}
+             }
+
+c) LIST2_REMOVE
+C <------ list2_remove:  YAML.dump{ ------- S
+             :type => :pgamelist | :userlist : | :gameviewlist
+             :detail => {L'hash è lo stesso è specifico del tipo di lista}
+             }
+
+
+5.5) Spettatori
+
+C2 -------- game_view: YAML.dump({
+                :cmd => :start_view | :stop_view | :req_list | :serv_resp
+                :index => index,
+                :resp_detail => {:result => {:ok | :failure}, :erro_info => error_index}
+               })  --------------> S
+:start_view
+Comando che consente di vedere un partita come spettatore.
+Index è il numero dell'indice della partita in gioco
+
+:stop_view 
+Comando per smetter di vedere un partita come spettatore.
+Index è il numero dell'indice della partita in gioco
+
+:serv_resp 
+risposta del server.
+
+:req_list  
+Comando per richiedere la lista dei giochi in esecuzione
+
+
+L'elemento che va a finire in pg_list2 è:
+                     { :index => pg_index,
+                       :players => [plname1, plname2,...]
+                       :viewers => [plname1, plname2,...},
+                       :is_classmentgame => true|false,
+                       :game_name => game_name,
+                     }
+
+
+
+6) Azioni disponibili durante una partita
+
+C -------- resign_game: index -----------> S
+usato per dare forfait nella partita attuale
+NOTA: la notifica del forfait avviene attraverso l'algoritmo
+Informare il client che un giocatore ha abbandonato non serve.
+
+C1 -------- restart_game: index -----------> S
+Usato dal client per proporre la rivincita della partita appena effettuata 
+C2 <-------- restart_game: index, user_name ----------- S
+il server notifica la volontà di un giocatore ad effettuare la rivincita
+Quando tutti i giocatori al tavolo confermano la loro rivincita la partita
+riparte in modo automatico
+
+C1 -------- leave_table: index -----------> S
+Il client lascia il tavolo appena occupato
+C2 <-------- leave_table_ntfy: index, user_name ----------- S
+Il server notifica che un giocatore che era seduto al tavolo lo ha lasciato
+
+6.1) rivincita ad un altro gioco
+
+C1 -------- restart_withanewgame: YAML.dump({ :type_req => :create | :resp | :challenge | :join | :decline
+                                     :resp_code => :ok_create | :reject_create | :join_ok | :join_declined
+                                              :detail => {
+                                                :index => index
+                                                :name => gioco_name,
+                                                :prive => {val =>treu/false, pin =>"1234"}
+                                                :class => true/false
+                                                :opt => {<gaeme specific option hash>}
+                                              }
+                                            })
+Le risposte del server a :create è del tipo :resp e in :resp_code si trova la risposta.
+Il server può rifiutare l'offerta (:resp => :reject_create) in quanto è possibile che l'avversario
+o si sia scollegato oppure abbia per primo lanciato una nuova sfida. Se la sfida viene mandata
+all'avversario, allora viene manadata la risposta :resp_code => :ok_create.
+Il secondo giocatore riceve lo stesso messaggio con  :type_req => :challenge. Il secondo giocatore
+può ora rifiutare (:type_req => :decline) oppure accettare (:type_req => :join) mandando al server
+il messaggio  restart_withanewgame con la :type_req scelta. Il primo giocatore riceve la risposta dal server
+con :type_req => :resp e con :resp_code => :join_ok | :join_declined a seconda che il secondo 
+giocatore abbia accettato o meno la sfida.
+
+
+7) Errori
+Quando il server vuole manadare un messaggio di errore generico al client
+esso lo può sempre fare con:
+
+C <------------ srv_error: code ------------------ S
+Code rappresenta il codice dell'errore
+
+== Keep Alive ==
+
+Il server fa un check ogni tot minuti (< 10 min), per controllare se
+il socket funziona. Altrimenti un client che non presenta attività per 
+più di 10 minuti rischia di entrare in uno stato non definito.
+
+C <------------ ping_req: strin_info ------------------ S
+C ------------- ping_resp: strin_info -----------------> S
+
+== Messaggi algoritmo di gioco ==
+
+Sul server viene creata una instanza della classe CoreGame<game>, dove
+<game> sta per l'instanza del core del gioco in questione (Mariazza, briscola, ...)
+Quando il client manda un messaggio al server, esso viene ricevuto da un 
+'net adaption layer'(NAL_Server_CoreGame<game>) il quale chiama poi le 
+funzioni di CoreGame<game> che nella versione contro la cpu vengono chiamate dalla gui.
+Dal lato client, la classe <game>Gfx non utilizza l'oggetto CoreGame<game>, ma bensi' 
+l'adapter NAL_Gfx_CoreGame<game> che genera i messaggi da mandare sul socket del
+server.
+  *** Messaggi direzione server (C -> S) ***
+    alg_player_change_briscola:  card_briscola, card_on_hand
+    alg_player_declare: name_decl
+    alg_player_cardplayed: lbl_card
+    start_new_match:              # nota: quando ogni giocatore al tavolo ha
+                                  # chiamato start_new_match allora NAL chiama il
+                                  # metodo gui_new_match 
+    gui_new_segno:    # automatico se necessario, nessun argomento passato           
+    
+  *** Messaggi direzioni client (S -> C)
+  In questo caso la classe <game>Gfx non viene chiamata direttamente dal 
+  server socket, ma viene ricevuto da un NAL_Gfx_CoreGame<game> il quale ricrea i vari oggetti
+  per la classe <game>Gfx.  
+  Per quanto riguarda il lato server, ogni giocatore ha associato una instanza di
+  NAL_Server_Algorithm in modo da mandare i messaggi sul socket nel modo qua sotto
+  indicato.
+    
+    onalg_new_match: YAML.dump([gioco_name, [players], {options}])
+       onalg_new_match viene usato in modo differente dall'interfaccia offline
+       dove compaiono solo i nomi dei giocatori. I parametri aggiunti servono
+       per sopperire alle info che vengono date a gfx al momento dello start.
+       Per coerenza con gli altri messaggi si potrebbe cambiare l'interfaccia
+       anche per il gioco offline, anche se parametri come gioco_name in questo
+       caso non hanno senso
+    onalg_new_giocata: carte1, carte2,...carte5, briscola
+    onalg_newmano: login_name
+    onalg_manoend: YAML.dump(player_best.name, carte_prese_mano, punti_presi) 
+    onalg_pesca_carta: c1
+    onalg_giocataend: YAML.dump(best_pl_points) 
+    onalg_game_end: YAML.dump(best_pl_segni)
+    onalg_have_to_play:  # in questo caso, siccome la struttura command_decl_avail
+                         # è complessa ho optato per 
+                         # YAML.dump([player.name, command_decl_avail])
+                         # per ricevere si usa YAML::load. Da notare che in un 1K
+                         # si possono mandare più di 20 comandi
+    onalg_player_has_changed_brisc: login_player, card_briscola, card_on_hand
+    onalg_player_has_played: login_player, lbl_card
+    onalg_player_has_declared: login_player, name_decl, points
+    onalg_player_has_getpoints: login_player,  points
+    onalg_player_cardsnot_allowed: login_player, carte1, carte2, ....
+    onalg_player_has_taken: login_player, carte1, carte2, ....
+    onalg_gameinfo: YAML.dump({:deckcard => :_Ab })
+	onalg_generic: YAML.dump([:method_name, {...arguments}])
+
+== Client update ==
+
+Quando viene riconosciuta una versione del server attuale rispetto a quella del client,
+il client richiede al server se esiste per il client un pacchetto update.
+C -------- update_req: YAML.dump(nomeprog, versprog, verprotcoll )   -----------> S
+nomeprog è il nome del programa client (ex Cuperativa), versprog è il protocollo
+espresso come array di tre interi (ex 0.5.4), verprotcoll è la versione del protocollo network
+come array di 2 interi (ex: 3,2)
+Se esiste un'update per il client allora il server risponde con 
+C <-------- update_resp: serverstr, file_pack_str   ----------- S
+altrimenti con 
+C <-------- update_resp: no_update_found   ----------- S
+per indicare che non sono disponibili updates.
+serverstr è la srtinga che identifica il server, ex 'kickers.fabbricadigitale.it'
+file_pack_str è la stringa che riconosce il file sul server, ex '/cuperativa/rel/up_to_0_6_4.tgz'
+Viene usato un singolo pacchetto tar da spacchettare dove	all'interno
+ci sono tutti i files necessari per aggiornare la nuova versione del client.
+La più semplice è mettere i vari tgz da copiare dove si trova la platform assieme al deploy file
+che va a sostituire quello vecchio.	
+C <-------- update_resp: must_update_platform   ----------- S
+must_update_platform indica che bisogna fare un update di tutta l'applicazione compresa la
+platform.
+
+== Update: risposta server con interfaccia avanzata
+
+Siccome la risposta update_resp è troppo scarna e non si può aggiornare
+un client già pubblicato, ho usato un' altra risposta aggiuntiva con la quale un client aggiornato
+può meglio inserire le informazioni per l'aggiornamento:
+C <-------- update_resp2: YAML.dump({:type => typesym,
+                                     :server => serverstr, 
+                                     :file => file_pack_str, 
+                                     :size => sizestr,
+                                     :link_platf => setupurlstr,
+                                     :descr => descriptionstr}) -------- S    
+
+serverstr e file_pack_str sono le stesse di update_resp. Il :type decide il tipo
+di aggiornamento. Essi sono tre:
+:appli_update  => aggiorna l'applicazione, vale per src e res assieme
+:platf_update  => aggiorna la piattaforma
+:nothing       => nessuna update è necessaria
+sizestr è una stringa che indica la dimensione del file da scaricare (esempio '0,2 Mb')
+setupurlstr è la stringa del programma di setup che installa tutto il programma,
+questo ha senso se si aggiorna la piattaforma.
+descriptionstr è la stringa che descrive il contenuto dell'update.
+
+== Riconnessione
+Il server controlla, quando un giocatore che effettua il login, se 
+l'utente era seduto ad un tavolo come giocatore. Se questo accade il server 
+informa l'utente che ha una partita in corso e che la deve riprendere sia per
+giocarla fino in fondo che per abbandonarla.
+
+C <------------ player_reconnect  YAML.dump({:cmd => :game_in_progress}) ---- S 
+Questo messaggio viene mandato al posto di :login_ok anche se è 
+implicito che il login abbia avuto successo.
+A questo punto il client ha bisogno di ripristinare lo stato della partita.
+==== Ripristino briscola 
+- Mandare le stesse info che vengono mandata con alg_newmatch
+- Mandare le carte nel mazzo, la briscola, le carte dei giocatori, il punteggio
+dei giocatori,  chi ha preso l'ultima mano, a chi tocca,
+le carte che sono in tavola e quali crate hanno preso i giocatori.
+Queste info vanno mandate al briscola_gfx che provvederà ad attualizzare il suo stato.
+
+=== Aspettare il collegamento del giocatore
+Quando aspettare? Solo quando il programma si scollega perchè fa un crash oppure la 
+linea è instabile. Se un giocatore risponde alla domanda "vuoi finire la partita?"
+con un si, a queso punto è chiaro che abbandona la partita perdendola.
+Con meno giocatori il robot abbandona la partita, invece deve fare
+richiesta per avere la partita vinta.
+
+C ------------ player_request  YAML.dump({:cmd => :assign_gamewin, :det => :opponent_leaved | timeout}) ----> S 
+
+	
+== Tunnel Http (Obsoleto)
+Per evitare problemi coi proxy e firewall, cuperativa manda i messaggi impacchettati
+sul protocollo http. I messaggi sono codificati, in entrambe le direzioni, in modo base64.
+Quando un client manda un messaggio usa il link office_send_msg/&<msg_zipcoded>
+Il server non deve fare altro che spacchettare il messaggio ed effettuare il parsing come
+nel caso sopra riportato. Dato che il server raw socket riconosce il client in quanto ha un 
+socket per ogni client, se il server é un'applicazione mongrel, questo non è più il caso.
+Il client viene allora identificato con un id, che il server ritorna al client al momento del login.
+Questo Id si trova nell'header http della richiesta GET. Il campo è: X-Cup-Session-Id
+Altro problema da affrontare è che il server http non manda messaggi indietro al client
+se non sono richiesti. Qui è necessarrio un polling per avere i messaggi chat e quando 
+un giocatore gioca una carta.
+
+== Server Logging ==
+Sembra che ci siano dei problemi di performance se i log del server sono gli 
+stessi delle connessioni e delle partite. Allora ho deciso di usare il seguente schema:
+ ** Produzione ***
+Server daemon => File server_info_<timestamp>. Esso viene usato per gli errori e i
+crash del server
+Server core => nulla
+Connessione singola => File <time stamp>_conn.log
+Core game server (p.e. Mariazza, briscola core)=> File <time stamp>_coregame.log
+ ** Test **
+Gli stessi settings della produzione con però attivo il Server core sul stdout.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    

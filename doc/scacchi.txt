@@ -1,0 +1,33 @@
+== Scacchi
+
+Il gioco rispecchia la costruzione l'architettura dei gichi di carte,
+con un core, algoritmo cpu e algoritmo gfx.
+L'interfaccia AlgCpuPlayerBase non ha molto senso per gli scacchi,
+quindi ho deciso di usare solo il meteodo onalg_gameinfo in quanto
+manda tutto in modo trasparente fino all'algoritmo. Lo svantaggio è
+che l'algoritmo deve fare il parser del messaggio. Negli scacchi,
+comunque i tipi di messaggi sono pochi.
+
+== Messaggi
+- Nuova partita:
+  {:cmd => :new_match, :opt => {:pl1_white => "name1", :pl2_black => "name2", 
+         :time =>{:per_player => time, :bonus_pro_move => time}}}
+         
+- Tocca a muovere
+  {:cmd => :have_to_move, :opt => {:rem_time => time, :pl_name => "name", :move_num => 1.., :color => (...)}}
+  
+- Giocatore ha mosso
+{:cmd => :has_moved, :opt => {:rem_time => time, :pl_name => "name", :move_num => 1..
+  :move => 
+     {:color => (...), :movetype => (..) , 
+     :start_x => 0..7, :start_y => 0..7, :end_x => 0..7, :end_y => 0..7},
+     :promotion_piece => (...)
+  }}
+  
+  dove :color => {:w, :b} e :movetype => {:move, :enpassant, :promotion, :shortcastle, :longcastle, :move_eat}
+  
+ - Partita finita
+ {:cmd => :game_end, :opt => {:reason => (...),  
+      points_pl1_w => (0,0.5,1), points_pl2_b => (0,0.5,1)}}
+      
+      dove :reason è uno tra {:checkmate, :timeout, :resign, :patta}

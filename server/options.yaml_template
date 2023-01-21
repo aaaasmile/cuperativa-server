@@ -1,0 +1,35 @@
+--- 
+:ip: 127.0.0.1
+:port: 20606
+:login_email: <account di posta che manda le mail>
+:password_email: <password account di posta>
+:database:
+  :use_sqlite3: false
+  :user_db: <user del db>
+  :pasw_db: <password user db>
+:publickey_server: <pub key server>
+:secret_server: <server user secret>
+
+#set to true if you are developing on local machine
+:test_local_service: false
+
+:spec_server: 
+  :server_name: ArmonicaSgab
+  :ip_changing: true
+  :ip_fix: 127.0.0.1
+:logpath: /home/igor/logs
+
+
+#opzioni per connection handler
+:connhandler_opt: 
+  :version_to_package: 
+    :link_plat: http://rubyforge.org/frs/download.php/73230/cuperativa_082_setup.exe
+    :descr: "Corretto errore salvataggio settings. In caso di problemi: http://cuperativa.invido.it"
+    :server_name: http://kickers.fabbricadigitale.it
+    :src: 
+      :file: /cuperativa/update_packages/ver_0_8_2_onlycode.tar.gz
+      :size: 0,341 Mb
+    :fullapp: 
+      :file: /cuperativa/update_packages/ver_0_8_2_full.tar.gz
+      :size: 4,8 Mb
+
