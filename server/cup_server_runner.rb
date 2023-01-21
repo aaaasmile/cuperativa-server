@@ -12,7 +12,6 @@ require 'pg_item'
 require 'game_in_prog_item'
 require 'nal_srv_algorithm'
 require 'cuperativa_server'
-require 'srv_ip_updater'
 require 'database/sendemail_errors'
 
 $g_os_type = :win32_system

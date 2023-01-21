@@ -1,1 +1,0 @@
-c:\ruby\bin\ruby.exe E:\Projects\ruby\cuperativa0508\server\daemon_cup.rb run

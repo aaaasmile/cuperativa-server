@@ -8,7 +8,7 @@ require 'digest'
 module CupUserDataModel
   
   class CupUsers < ActiveRecord::Base
-    set_table_name "users"
+    self.table_name = "users"
     # values are to find into the rails application
     # This value must be the same as in config/initializers/site_keys.rb
     # otherwise passwords check failed always.

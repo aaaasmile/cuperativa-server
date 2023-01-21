@@ -273,7 +273,7 @@ class CoreGameBriscola < CoreGameBase
           @log.info "pesca_carta: distribuisce anche la briscola"
           briscola_in_tavola = false
         else
-          @log.error "Pesca la briscola che non c'è più"
+          @log.error "Pesca la briscola che non c'Ã¨ piÃ¹"
         end 
         #p carte_player
         player.algorithm.onalg_pesca_carta(carte_player)
@@ -387,7 +387,7 @@ class CoreGameBriscola < CoreGameBase
     nome_gioc_max = best_pl_points[0][0]
     # increment segni counter
     if best_pl_points[0][1] == 60
-      @log.info "Game pareggiato both players with 60 points"
+      @log.info "Game tied both players with 60 points"
     else
       @segni_curr_match[nome_gioc_max] += 1
     end
@@ -530,7 +530,7 @@ class CoreGameBriscola < CoreGameBase
     if @segno_state == :end
       return :not_allowed
     end
-    @log.info "alg_player_resign: giocatore perde la partita"
+    @log.info "alg_player_resign: player risign the game"
     if @game_opt[:record_game]
       @game_core_recorder.store_player_action(player.name, :resign, player.name, reason)
     end
@@ -633,7 +633,7 @@ class CoreGameBriscola < CoreGameBase
     return if super(players)
     @log.info "gui_new_match"
     unless @game_opt[:num_of_players] == players.size
-      @log.error "Number of players don't match with option"
+      @log.error "Number of players doesn't match with option"
       return
     end
     @match_state = :match_started
