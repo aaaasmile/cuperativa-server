@@ -19,3 +19,16 @@ Versioni installate:
 - log4r-1.1.10
 - eventmachine-1.2.7
 - activerecord-7.0.4.1
+
+## Visual Code
+Ho installato due extension per ruby. La prima è Ruby e la seconda è Rufo-Ruby formatter.
+Nota che ch rufo è un gem che va installato a parte con:
+
+    gem install rufo
+Poi nei sttings delle due extensions vanno messi i path assoluti di rufo.bat e ruby.exe.
+Per fare andare il formatter, visual code l'ho dovuto far ripartire.
+
+## Start Server
+In windows, nella root directory del progetto, puoi lanciare
+
+    .\server\runserver.ps1
