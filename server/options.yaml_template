@@ -17,3 +17,4 @@
 :secret_server: <server user secret>
 :test_local_service: false
 :logpath: ../../logs
+:autorestart_on_err: false

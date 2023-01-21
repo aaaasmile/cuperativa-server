@@ -19,43 +19,6 @@ C <------ Login_ok: <name user> ------------ S
 	è inutile continuare a comunicare col server. Al server non interessa quale
 	client si collega e di che tipo è. 
 
-=== Connessione usando altri provider ==
-
-Se si esegue il login utilizzando un provider esterno come facebook
-si usano altri comandi per il login
-
-C ---------- login3pty_req YAML.dump(hash_info_req) --> S
-C <---------- login3pty_res YAML.dump(hash_info_res) --- S 
-
-L'interfaccia è tenuta generica per supportare diversi provider.
-
-*** Facebook ****
-
-Per effettuare il login usando facebook si procede con la seguente sequenza
-
-C  --- hash_info_req{:type => fb, :state => :init} --> S
-C <--- hash_info_res{ :link => 'http:\\....', type: :fb, :state => :weblogin} -- S
-Qui si esegue il login su facebook via web browser
-C  --- hash_info_req{:type => fb, state => :webloginok, :loginame => '<name>'}  --> S
-C <--- hash_info_res{ :sessionsecret => '002211...', :expires => 3326, 
-        :sessionkey => '2233..', :uid => '362536', type: :fb, :state => 2} --> S	
-
-C <------ Login_ok: <name user> ------------ S
-Nel caso ci siano degli errori questo il messaggio ritornato dal server:
-C <------ login_error: codice, <name user>  ------------ S
-Questi i codici:
-1: Password oppure login errati
-2: Utente già connesso al server
-3: Ospite già connesso al server
-
-
-Nota: se il server non ha salvato la sessione fb, esso risponde sempre
-con una richiesta :weblogin, questo per evitare che si possano rubare 
-le identità utilizzando una sessione non finita di un altro utente.
-La sessione rimane in memoria fino a quando il socket rimane attivo.
-Poi viene cancellata, questo per il motivo descritto sopra.
-
-
 2) Lista tavoli
 Quando un utente si collega ed effettua il login con successo, deve entrare
 nel modo observe sul server, che equivale a mostrare la tabella dei
@@ -541,18 +504,6 @@ richiesta per avere la partita vinta.
 C ------------ player_request  YAML.dump({:cmd => :assign_gamewin, :det => :opponent_leaved | timeout}) ----> S 
 
 	
-== Tunnel Http (Obsoleto)
-Per evitare problemi coi proxy e firewall, cuperativa manda i messaggi impacchettati
-sul protocollo http. I messaggi sono codificati, in entrambe le direzioni, in modo base64.
-Quando un client manda un messaggio usa il link office_send_msg/&<msg_zipcoded>
-Il server non deve fare altro che spacchettare il messaggio ed effettuare il parsing come
-nel caso sopra riportato. Dato che il server raw socket riconosce il client in quanto ha un 
-socket per ogni client, se il server é un'applicazione mongrel, questo non è più il caso.
-Il client viene allora identificato con un id, che il server ritorna al client al momento del login.
-Questo Id si trova nell'header http della richiesta GET. Il campo è: X-Cup-Session-Id
-Altro problema da affrontare è che il server http non manda messaggi indietro al client
-se non sono richiesti. Qui è necessarrio un polling per avere i messaggi chat e quando 
-un giocatore gioca una carta.
 
 == Server Logging ==
 Sembra che ci siano dei problemi di performance se i log del server sono gli 

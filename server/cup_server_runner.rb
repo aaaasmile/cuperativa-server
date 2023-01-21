@@ -1,5 +1,5 @@
 # file: cup_server_runner.rb
-# on production server start the server using daemon_cup.rb
+# Server start using daemon_cup.rb
 
 $:.unshift File.dirname(__FILE__)
 $:.unshift File.dirname(__FILE__) + "/.."
@@ -42,7 +42,7 @@ module MyGameServer
           :module => "pg",
           :db_name => "cupuserdatadb",
         },
-        :connhandler_opt => {},
+        :autorestart_on_err => false,
       }
       @settings_filename = File.dirname(__FILE__) + "/options.yaml"
       # server core instance. The instance is set after initializing the logger
@@ -136,7 +136,7 @@ module MyGameServer
           end
           #p "error #{detail}"
         ensure
-          if stopped_by_shutdown
+          if stopped_by_shutdown or not @serv_settings[:autorestart_on_err]
             break
           else
             @log.info "Restarting the server..."
@@ -151,7 +151,7 @@ module MyGameServer
         host = @serv_settings[:ip]
         port = @serv_settings[:port]
 
-        #@main_my_srv.connect_to_db(@serv_settings[:database])
+        @main_my_srv.connect_to_db(@serv_settings[:database])
 
         #
         # start the game server
