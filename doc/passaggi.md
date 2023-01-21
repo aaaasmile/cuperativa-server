@@ -15,7 +15,7 @@ Il codice di partenza è alquanto datato, ma  l'istallazione dei gems procede co
 - gem install activerecord
 
 Versioni installate:
-- daemons-1.4.1.gem
+- daemons-1.4.1
 - log4r-1.1.10
 - eventmachine-1.2.7
 - activerecord-7.0.4.1

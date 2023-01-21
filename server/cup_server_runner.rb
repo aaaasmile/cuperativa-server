@@ -33,7 +33,7 @@ module MyGameServer
       @settings_default = {
         :ip => "127.0.0.1", :port => 20606, :login_email => "",
         :password_email => "", :publickey_server => "00000", :secret_server => "00",
-        :test_local_service => true, :logpath => "/home/igor/logs",
+        :test_local_service => true, :logpath => "../logs",
         :database => {
           :user_db => "",
           :pasw_db => "",
@@ -43,29 +43,28 @@ module MyGameServer
         :connhandler_opt => {},
       }
       @settings_filename = File.dirname(__FILE__) + "/options.yaml"
-      # server core instance, take the instace after initializing the logger
+      # server core instance. The instance is set after initializing the logger
       @main_my_srv = nil #CuperativaServer.instance
-      @ipupdat = nil
     end
 
-    ##
-    # initialize logger
     def initlog(target)
       begin
         #p @serv_settings
         @logger = Log4r::Logger.new("serv_main")
-        out_log_name = File.join(@serv_settings[:logpath], "#{Time.now.strftime("%Y_%m_%d_%H_%M_%S")}cup_server.log")
-        mystderr_file = File.join(@serv_settings[:logpath], "cup_stderr#{Time.now.strftime("%Y_%m_%d_%H_%M_%S")}.log")
+        logpath_abs = File.expand_path(@serv_settings[:logpath], __FILE__)
+        out_log_name = File.join(logpath_abs, "#{Time.now.strftime("%Y_%m_%d_%H_%M_%S")}cup_server.log")
+        mystderr_file = File.join(logpath_abs, "cup_stderr#{Time.now.strftime("%Y_%m_%d_%H_%M_%S")}.log")
         #FileOutputter.new('coregame_log', :filename=> out_log_name)
         myApacheLikeFormat = PatternFormatter.new(:pattern => "[%d] %m") # questo usa [data] <testo>
-        mybaseApacheLikeLog = RollingFileOutputter.new "serv_main",
-                                                       :maxsize => 999999999,
-                                                       :maxtime => 86400, # tempo in secondi (1 * 14 giorni). Dopo 14 giorni avviene il rollout e
-                                                       # quindi viene creato un nuovo file
-                                                       :filename => out_log_name,
-                                                       :trunc => true, # se true viene usato 'w' in File.open, altrimenti con false 'a'
-                                                       # voglio 'a' in quanto ogni volta che viene chiamato lo script, devo avere un append
-                                                       :formatter => myApacheLikeFormat
+        mybaseApacheLikeLog = RollingFileOutputter.new("serv_main", {
+          :maxsize => 999999999,
+          :maxtime => 86400, # tempo in secondi (1 * 14 giorni). Dopo 14 giorni avviene il rollout e
+          # quindi viene creato un nuovo file
+          :filename => out_log_name,
+          :trunc => true, # se true viene usato 'w' in File.open, altrimenti con false 'a'
+          # voglio 'a' in quanto ogni volta che viene chiamato lo script, devo avere un append
+          :formatter => myApacheLikeFormat,
+        })
 
         Log4r::Logger["serv_main"].add "serv_main"
         # open a file for standard error, usefull to cache emachine errors
@@ -78,20 +77,19 @@ module MyGameServer
         end
         # now we can get the server beacuse logger is initiated
         @main_my_srv = CuperativaServer.instance
-        @main_my_srv.set_dir_log(@serv_settings[:logpath])
-        @ipupdat = Server_Cup_Webserv::IpUpdateCup.new
-        @logger.debug "Init log ok."
+        @main_my_srv.set_dir_log(logpath_abs)
+        @logger.debug "Init #{logpath_abs} log ok"
       rescue
-        p "error #{$!}"
-        @logger.error "error #{$!}"
+        str_err = "Server crashed error: #{$!}"
+        str_err += detail.backtrace.join("\n")
+        p "error #{str_err}"
+        @logger.error "error #{str_err}"
         exit
       end
     end
 
-    ##
-    # Load settings from file
     def load_settings
-      print "Load settings..."
+      p "Load settings..."
       yamloptions = {}
       prop_options = {}
       yamloptions = YAML::load_file(@settings_filename) if File.exist?(@settings_filename)
@@ -108,12 +106,9 @@ module MyGameServer
       #p @serv_settings
     end
 
-    ##
-    # Run the server
     def run
       @main_my_srv.set_settings(@serv_settings)
       stopped_by_shutdown = false
-      @ipupdat.log = @logger
 
       # avoid brutal shutdown with ctr-c
       trap(:INT) {
@@ -141,12 +136,11 @@ module MyGameServer
           sender.send_email("Match server error:\n" + ("#{str_err}\n"))
         ensure
           break if stopped_by_shutdown
+          @logger.info "Restarting the server..."
         end
       end
     end
 
-    ##
-    # Go server
     def go_server_go
       EventMachine::run {
         host = @serv_settings[:ip]
