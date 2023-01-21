@@ -1,4 +1,4 @@
-$env:path = "D:\ruby\ruby_3_2_1\bin;" + $env:path
+$env:path = "D:\ruby\ruby_3_2_0\bin;" + $env:path
 
 $scriptpath = $MyInvocation.MyCommand.Path
 $dir = Split-Path $scriptpath
