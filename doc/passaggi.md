@@ -10,13 +10,11 @@ Per avere una powershell che funziona con ruby si usa:
 Il codice di partenza è alquanto datato, ma  l'istallazione dei gems procede come segue:
 
 - gem install daemons
-- gem install log4r
 - gem install eventmachine (nota che per questo gem è necessario MSYS2)
 - gem install activerecord
 
 Versioni installate:
 - daemons-1.4.1
-- log4r-1.1.10
 - eventmachine-1.2.7
 - activerecord-7.0.4.1
 
@@ -32,3 +30,8 @@ Per fare andare il formatter, visual code l'ho dovuto far ripartire.
 In windows, nella root directory del progetto, puoi lanciare
 
     .\server\runserver.ps1
+
+## log4r
+Il gem log4r-1.1.10 che ho installato all'inizio è troppo datato e non è compatibile con 
+ruby 3.2.0. Per cui l'ho incluso in questo progetto e l'ho modificato per farlo funzionare.
+Su Github ci sono dei pull request che lo fanno andare a modo (https://github.com/colbygk/log4r/pull/67/files).

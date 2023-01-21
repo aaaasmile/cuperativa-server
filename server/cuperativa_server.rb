@@ -6,7 +6,7 @@ $:.unshift File.dirname(__FILE__) + "/.."
 require "rubygems"
 
 require "singleton"
-require "log4r"
+require "lib/log4r"
 require "pg_list"
 require "pg_item"
 require "game_in_prog_item"

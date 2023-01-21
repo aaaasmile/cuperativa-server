@@ -2,9 +2,10 @@
 # on production server start the server using daemon_cup.rb
 
 $:.unshift File.dirname(__FILE__)
+$:.unshift File.dirname(__FILE__) + "/.."
 
 require "rubygems"
-require "log4r"
+require "lib/log4r"
 require "eventmachine"
 require "cuperativa_user_conn"
 require "singleton"
