@@ -8,7 +8,7 @@ require "base64"
 require "src/network/prot_parsmsg"
 require "src/network/prot_buildcmd"
 require "mod_user_conn_handl"
-require "database/sendemail_errors"
+require "err_logger"
 require "src/base/core/cup_strings"
 
 module MyGameServer
@@ -23,12 +23,13 @@ module MyGameServer
 
     include ParserCmdDef
     include ProtBuildCmd
+    include MyErr
 
     def initialize(*args)
       super
     rescue Exception
-      @log.error "initialize error(#{$!})"
-      error(detail)
+      err_msg = "initialize error(#{$!})"
+      error_msg(err_msg, "Connection Init", @log, false)
     end
 
     # part adapted from protocol LineText2 - start
@@ -142,6 +143,8 @@ module MyGameServer
       @state_con = :created
       @main_my_srv = CuperativaServer.instance
       @conh_settings = @main_my_srv.serv_settings[:connhandler_opt]
+      @send_email_on_err = @main_my_srv.serv_settings[:email_crash][:send_email]
+
       @version_to_package = @conh_settings[:version_to_package]
       # send server version
       send_data(build_cmd(:ver, "#{VER_MAJ}.#{VER_MIN}"))
@@ -174,12 +177,11 @@ module MyGameServer
           end
         end
       rescue => detail
-        @log.error "post_init error(#{$!})"
-        error(detail)
+        error_trace(detail, "Connection post_init", @log, @send_email_on_err)
       end
     rescue Exception
-      @log.error "post_init error(#{$!})"
-      error(detail)
+      msg = "post_init error(#{$!})"
+      error_msg(msg, "Connection", @log, @send_email_on_err)
     end
 
     def has_leaved?
@@ -220,8 +222,7 @@ module MyGameServer
         end
       end
     rescue => detail
-      @log.error "receive_line error(#{$!})"
-      error(detail)
+      error_trace(detail, "Connection receive_line", @log, @send_email_on_err)
     end
 
     ##
@@ -269,14 +270,6 @@ module MyGameServer
     # Log chat message in the current table log channel
     def log_table(str)
       @game_in_pro.nal_server.log_table_comm(str) if @game_in_pro
-    end
-
-    def error(detail)
-      @log.error("ERROR connection:")
-      @log.error(detail.backtrace.join("\n"))
-      # send also an email for this kind of errors
-      sender = EmailErrorSender.new(@log)
-      sender.send_email("#{$!}\n" + detail.backtrace.join("\n"))
     end
 
     ##

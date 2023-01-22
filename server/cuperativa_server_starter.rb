@@ -10,12 +10,14 @@ require "pg_item"
 require "game_in_prog_item"
 require "nal_srv_algorithm"
 require "cuperativa_server"
-require "database/sendemail_errors"
+require "err_logger"
 
 include Log4r
 
 module MyGameServer
   class CupServRunner
+    include MyErr
+
     def initialize
       @serv_settings = {}
       @settings_default = {
@@ -41,6 +43,7 @@ module MyGameServer
       @settings_filename = File.dirname(__FILE__) + "/options.yaml"
       # server core instance. The instance is set after initializing the logger
       @main_my_srv = nil #CuperativaServer.instance
+      @send_email_on_err = @settings_default[:email_crash][:send_email]
     end
 
     def initlog(target)
@@ -76,9 +79,7 @@ module MyGameServer
         @log.debug "Init log dir #{logpath_abs} ok"
       rescue
         str_err = "Server crashed error: #{$!}"
-        str_err += detail.backtrace.join("\n")
-        p "error #{str_err}"
-        @log.error "error #{str_err}"
+        error_msg(str_err, "Server Crash (Init Log)", @log, @send_email_on_err)
         exit
       end
     end
@@ -99,6 +100,7 @@ module MyGameServer
         end
       end
       #p @serv_settings
+      @send_email_on_err = @serv_settings[:email_crash][:send_email]
     end
 
     def run
@@ -120,18 +122,13 @@ module MyGameServer
           go_server_go() # blocking call, exit only when server is stopped for some reason
           @log.info "Server is now OFF"
         rescue => detail
-          @log.error "Server crashed error(#{$!})"
-          @log.error(detail)
-          str_err = "Server crashed error: #{$!}"
-          str_err += detail.backtrace.join("\n")
-          if @serv_settings[:email_crash][:send_email]
-            sender = EmailErrorSender.new(@log)
-            sender.send_email("Match server error:\n" + ("#{str_err}\n"))
-          end
+          error_trace(detail, "Server Crash", @log, @send_email_on_err)
           #p "error #{detail}"
+        rescue Exception
+          msg = "Server run error(#{$!})"
+          error_msg(msg, "Server Crash", @log, @send_email_on_err)
         ensure
           if stopped_by_shutdown or not @serv_settings[:autorestart_on_err]
-            p "Ensure shutdown with last error: #{$!}"
             break
           else
             @log.info "Restarting the server..."

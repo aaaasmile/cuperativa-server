@@ -97,15 +97,6 @@ module MyGameServer
       @pg_list.set_db_connector(@db_connector)
     end
 
-    def error(detail)
-      @server_core_log.error("ERROR on server:")
-      @server_core_log.error(detail.backtrace.join("\n"))
-      if @serv_settings[:email_crash][:send_email]
-        sender = EmailErrorSender.new(@server_core_log)
-        sender.send_email("#{$!}\n" + detail.backtrace.join("\n"))
-      end
-    end
-
     ##
     # If the user use a guest login we add a number to make it unique
     # The number is the max guest id + 1
