@@ -36,3 +36,8 @@ In windows, nella root directory del progetto, puoi lanciare
 Il gem log4r-1.1.10 che ho installato all'inizio è troppo datato e non è compatibile con 
 ruby 3.2.0. Per cui l'ho incluso in questo progetto e l'ho modificato per farlo funzionare.
 Su Github ci sono dei pull request che lo fanno andare a modo (https://github.com/colbygk/log4r/pull/67/files).
+
+## debugger
+Ho usato l'extension VsCode rdbg Ruby dove tutti i parametri del caso vanno messi nel file launch.json.
+Però il debugger nell'EventMachine ha un crash e quindi non credo che nel server sia utilizzabile.
+Anche nella versione precedente, se non ricordo male, il server non funzionava con il debugger.

@@ -204,6 +204,8 @@ module MyGameServer
                                                      db_options[:name_db],
                                                      db_options[:mod_type])
         @db_connector.connect
+        log.debug "DB connected"
+        p @db_connector
       rescue => detail
         log "Connector error(#{$!})"
       end

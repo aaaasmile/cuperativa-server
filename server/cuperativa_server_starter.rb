@@ -131,6 +131,7 @@ module MyGameServer
           #p "error #{detail}"
         ensure
           if stopped_by_shutdown or not @serv_settings[:autorestart_on_err]
+            p "Ensure shutdown with last error: #{$!}"
             break
           else
             @log.info "Restarting the server..."
@@ -145,7 +146,7 @@ module MyGameServer
         host = @serv_settings[:ip]
         port = @serv_settings[:port]
 
-        #@main_my_srv.create_connector(@serv_settings[:database])
+        @main_my_srv.create_connector(@serv_settings[:database])
 
         #
         # start the game server
