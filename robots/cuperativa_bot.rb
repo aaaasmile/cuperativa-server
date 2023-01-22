@@ -104,7 +104,7 @@ class CuperativaBot
   def log_production
     @log = Log4r::Logger.new("coregame_log")
     #@log.outputters << Outputter.stdout
-    out_log_name = File.join(File.dirname(__FILE__), "robot_game.log")
+    out_log_name = File.join(File.dirname(__FILE__), "../logs/robot_game.log")
     #FileOutputter.new('coregame_log', :filename=> out_log_name)
     myApacheLikeFormat = PatternFormatter.new(:pattern => "[%d] %m") # questo usa [data] <testo>
     mybaseApacheLikeLog = RollingFileOutputter.new "coregame_log",
