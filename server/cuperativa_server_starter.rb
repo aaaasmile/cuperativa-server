@@ -119,13 +119,13 @@ module MyGameServer
         # when the server crash because an error, then restart it
         # dont' restart it only if it was :INT trap
         begin
-          go_server_go() # blocking call, exit only when server is stopped for some reason
+          server_loop # blocking call, exit only when server is stopped for some other reason like a crash
           @log.info "Server is now OFF"
         rescue => detail
           error_trace(detail, "Server Crash", @log, @send_email_on_err)
           #p "error #{detail}"
         rescue Exception
-          msg = "Server run error(#{$!})"
+          msg = "Server run exception (#{$!})"
           error_msg(msg, "Server Crash", @log, @send_email_on_err)
         ensure
           if stopped_by_shutdown or not @serv_settings[:autorestart_on_err]
@@ -138,20 +138,16 @@ module MyGameServer
       @log.info "Server turning off because run terminated"
     end
 
-    def go_server_go
+    def server_loop
+      @log.debug "Enter into the server loop"
+      @main_my_srv.create_connector(@serv_settings[:database])
+
       EventMachine::run {
         host = @serv_settings[:ip]
         port = @serv_settings[:port]
-
-        @main_my_srv.create_connector(@serv_settings[:database])
-
-        #
         # start the game server
         EventMachine::start_server(host, port, MyGameServer::CuperativaUserConn)
-        #p a.class # class is string
-        #p a # something like "efa022d6-dd65-41b7-b84f-d4afeec0b5392"
         @log.info("*** Now accepting connections on address #{host}:#{port}")
-        #EventMachine::add_periodic_timer( 10 ) { $stderr.write "*" }
         EventMachine::add_periodic_timer(300) { @main_my_srv.ping_clients() }
         EventMachine::add_periodic_timer(0.03) { @main_my_srv.process_game_in_progress }
       }
