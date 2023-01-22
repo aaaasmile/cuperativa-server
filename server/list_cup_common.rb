@@ -4,12 +4,10 @@ require "rubygems"
 require "database/dbconnector"
 
 module MyGameServer
-  ##
-  # Common stuff for list in cuperativa server
   class ListCupCommon
     def initialize
       @log = Log4r::Logger["serv_main"]
-      @dir_log = File.dirname(__FILE__) + "/logs"
+      @dir_log = File.dirname(__FILE__) + "/../../logs"
       @db_connector = nil
     end
 

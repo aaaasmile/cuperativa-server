@@ -21,22 +21,13 @@ require "viewgame_list"
 # 5.a) In pg_list.rb aggiungi un require nalgames/mynewgame
 # 5.b) In pg_list.rb aggiungi il nuovo hash in @@games_available
 # 5.c) Crea il file NalServer.... <mynewgame>, prestando attenzione alla funzione update_classment
-# La tabella della classifica nel db va creata usando il progetto rails della cuperativa
-# (vedi doc cuperativa_invido_it.txt)
-# 6) Oltre al progetto in rails, va aggiornato il CupUserDataModel aggiungendo una classifica per il gioco nuovo
+# 6) Va aggiornato il CupUserDataModel aggiungendo una classifica per il gioco nuovo
 # 6.a) DbDataConn.find_or_create_classifica deve supportare la nuova classifica, altrimenti si gioca senza classifica
 # 6.b) Aggiungere la nuova classifica con la funzione default_classifica nel file dbcup_datamodel.rb
 
 include Log4r
 
 module MyGameServer
-
-  #########################################################################
-  #########################################################################
-  ################################################## class CuperativaServer
-  ##
-  # Cuperativa server main class
-  # Connection manager
   class CuperativaServer
     attr_reader :serv_settings
 
@@ -44,7 +35,7 @@ module MyGameServer
     include ProtBuildCmd # for build_cmd
 
     def initialize
-      @dir_log = File.dirname(__FILE__) + "/../logs"
+      @dir_log = File.dirname(__FILE__) + "/../../logs"
 
       # connected player clients, use connection hash to identify it
       @clients = {}
@@ -99,22 +90,23 @@ module MyGameServer
       @game_in_progress = {}
     end
 
-    def connect_to_db(user_db, password_db, name_db, use_sqlite3)
-      # database connector
-      @db_connector = MyGameServer::DbDataConn.new(@server_core_log, user_db, password_db, name_db)
-      @db_connector.use_sqlite3 = use_sqlite3
+    def connect_to_db(db_options)
+      @db_connector = MyGameServer::DbDataConn.new(@server_core_log,
+                                                   db_options[:user_db],
+                                                   db_options[:pasw_db],
+                                                   db_options[:name_db],
+                                                   db_options[:mod_type])
       @db_connector.connect
       @pg_list.set_db_connector(@db_connector)
     end
 
-    ##
-    # Error log
     def error(detail)
       @server_core_log.error("ERROR on server:")
       @server_core_log.error(detail.backtrace.join("\n"))
-      # send also an email for this kind of errors
-      sender = EmailErrorSender.new(@server_core_log)
-      sender.send_email("#{$!}\n" + detail.backtrace.join("\n"))
+      if @serv_settings[:email_crash][:send_email]
+        sender = EmailErrorSender.new(@server_core_log)
+        sender.send_email("#{$!}\n" + detail.backtrace.join("\n"))
+      end
     end
 
     ##
@@ -165,8 +157,6 @@ module MyGameServer
       #return 2 # user already in use
     end
 
-    ##
-    # set the guest connection
     def set_guest_connected(name, conn)
       unless @logged_in_list[name]
         @logged_in_list[name] = conn
@@ -176,8 +166,6 @@ module MyGameServer
       return 3
     end
 
-    ##
-    # Send command to all client connected
     def send_cmd_to_all(cmd_for_all)
       @logged_in_list.each_value { |cl| cl.send_data(cmd_for_all) }
     end
@@ -190,9 +178,6 @@ module MyGameServer
       log "Player online #{@clients.size}"
     end
 
-    ##
-    # Remove connection
-    # conn: CuperativaUserConn to be removed
     def remove_connection(conn)
       log "Remove player #{conn.user_name}"
       pl_name = conn.user_name
@@ -301,9 +286,6 @@ module MyGameServer
     ##
     # Client want to join a private game
     def join_req_private(conn, pg_index, pin)
-      #pg_item = @pg_list.get_pg_item(pg_index)
-      #conn_creator = @logged_in_list[pg_item.get_creator_name] if pg_item
-      #@pg_list.join_req_private(conn, pg_index, pin, conn_creator)
       @pg_list.join_req_private(conn, pg_index, pin)
     end
 
@@ -322,9 +304,6 @@ module MyGameServer
     end
 
     def join_request(conn, pg_index)
-      #pg_item = @pg_list.get_pg_item(pg_index)
-      #conn_creator = @logged_in_list[pg_item.get_creator_name] if pg_item
-      #@pg_list.join_req_part1(conn, pg_index, conn_creator)
       @pg_list.join_req_part1(conn, pg_index)
     end
 
@@ -348,7 +327,6 @@ module MyGameServer
         if game_in_pro
           @game_in_progress[pg_index] = game_in_pro
           player_list.each { |name| @viewgame_list.unsubscribe_user_game_view(conn.user_name) }
-          # start the network game
           start_network_game(game_in_pro)
         end
       else
@@ -441,7 +419,6 @@ module MyGameServer
         # like alg_player_declare
         conn.game_in_pro = game_in_pro
         # set the type name of the game
-        #alg = NAL_Srv_Algorithm.new(conn, self, game_in_pro)
         # we need a customizable nal algorithm, beacuse also when the interface
         # still remain the same, object inside on it are different, dipending on the game
         #p game_in_pro.nal_server.nal_algorithm_name

@@ -39,7 +39,7 @@ module MyGameServer
         :database => {
           :user_db => "",
           :pasw_db => "",
-          :module => "pg",
+          :mod_type => "pg",
           :db_name => "cupuserdatadb",
         },
         :autorestart_on_err => false,

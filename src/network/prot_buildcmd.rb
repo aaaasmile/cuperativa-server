@@ -1,8 +1,6 @@
-#file: prot_buildcmd.rb
-
 $:.unshift File.dirname(__FILE__)
 
-require 'prot_constants'
+require "prot_constants"
 
 module ProtBuildCmd
   ##
