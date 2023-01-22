@@ -13,8 +13,5 @@
   :user_db: <db user>
   :db_name: cupuserdatadb
   :pasw_db: <db password>
-:publickey_server: <pub key server>
-:secret_server: <server user secret>
-:test_local_service: false
 :logpath: ../../logs
 :autorestart_on_err: false

@@ -30,8 +30,7 @@ module MyGameServer
           :relay_host => "",
           :send_email => false,
         },
-        :publickey_server => "00000", :secret_server => "00",
-        :test_local_service => true, :logpath => "../../logs",
+        :logpath => "../../logs",
         :database => {
           :user_db => "",
           :pasw_db => "",

@@ -3,6 +3,8 @@ require "database/dbconnector"
 
 module MyGameServer
   class ListCupCommon
+    attr_reader :options
+
     include MyGameServer::Connector
 
     def initialize
@@ -28,10 +30,14 @@ module MyGameServer
       return { :type => type_list, :detail => detail_list }
     end
 
+    # file_name: ist the option filename in this directory
     def init_from_setting(file_name)
+      file_name = File.dirname(__FILE__) + "/" + file_name
       yamloptions = YAML::load_file(file_name)
       set_dir_log(yamloptions[:logpath])
       connect_to_db(@log, yamloptions[:database])
+      @options = yamloptions
+      return @db_connector
     end
 
     def set_db_connector(db_connector)

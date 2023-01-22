@@ -12,14 +12,13 @@ require "dbcup_datamodel"
 
 module MyGameServer
   class DbDataConn
-    attr_accessor :use_sqlite3
-
-    def initialize(log, user, password, name_db, mod_type)
+    def initialize(log, user, password, name_db, mod_type, digest)
       @log = log
       @user = user
       @password = password
       @database_name = name_db
       @mod_type = mod_type
+      @digest = digest
     end
 
     def connect_sqlite3
@@ -43,28 +42,29 @@ module MyGameServer
 
     def connect_pg
       ActiveRecord::Base.establish_connection(
-        :adapter => "pg",
+        :adapter => "postgresql",
         :database => @database_name,
         :username => @user,
         :password => @password,
-        :host => "localhost",
+        :host => "127.0.0.1",
+        :statement_limit => 100,
       )
-      @log.debug "Connected to the database #{@database_name} using user: #{@user} and password: #{@password}"
+      @log.debug "Connected to the pg database #{@database_name} using user: #{@user} and password"
     end
 
     def is_login_authorized?(user, password)
       @log.debug "Checking credential for user #{user}"
-      res = try_to_authenticate(user, password)
+      res = try_to_authenticate(user, password, @digest)
       if res.nil?
         @log.debug "retry check in db"
-        res = try_to_authenticate(user, password)
+        res = try_to_authenticate(user, password, @digest)
       end
       return res ? true : false
     end
 
-    def try_to_authenticate(user, password)
+    def try_to_authenticate(user, password, digest)
       begin
-        user = CupUserDataModel::CupUsers.authenticate(user, password)
+        user = CupUserDataModel::CupUsers.authenticate(user, password, digest)
         if user
           user.lastlogin = Time.now
           user.save
@@ -179,8 +179,7 @@ module MyGameServer
       @log.debug "dummy user #{login_name} created"
     end
 
-    def create_admin_user()
-      login_name = "aaaasmile"
+    def create_admin_user(login_name, salt)
       olduser = CupUserDataModel::CupUsers.find :first, :conditions => { :login => login_name }
       if olduser
         @log.debug "User #{login_name} already in the db."
@@ -188,7 +187,7 @@ module MyGameServer
       end
       newuser = CupUserDataModel::CupUsers.new
       newuser.login = login_name
-      newuser.crypted_password = newuser.encrypt("123456")
+      newuser.crypted_password = newuser.password_digest("123456", salt, @digest)
       newuser.state = "active"
       newuser.save
       @log.debug "admin user #{login_name} created"
@@ -202,10 +201,11 @@ module MyGameServer
                                                      db_options[:user_db],
                                                      db_options[:pasw_db],
                                                      db_options[:name_db],
-                                                     db_options[:mod_type])
+                                                     db_options[:mod_type],
+                                                     db_options[:digest])
         @db_connector.connect
         log.debug "DB connected"
-        p @db_connector
+        #p @db_connector
       rescue => detail
         log "Connector error(#{$!})"
       end
@@ -218,13 +218,12 @@ if $0 == __FILE__
   require "log4r"
   include Log4r
 
-  log = Log4r::Logger.new("myuserctrl").add "stdout"
+  log = Log4r::Logger.new("serv_main").add "stdout"
 
   # admin is a user add on local database instance for testing purpose
-  ctrl = MyGameServer::DbDataConn.new(Log4r::Logger["myuserctrl"], "root", "rambo78", "cupuserdatadb")
-  #ctrl.use_sqlite3 = true
-  ctrl.connect
-  ctrl.create_dummyusers
+  #pg_list = MyGameServer::PendingGameList.new
+  #ctrl = pg_list.init_from_setting("options.yaml") # connect to the db
+  #ctrl.create_dummyusers
   #ctrl.create_admin_user
   #ctrl.create_robot_players
   #p res = ctrl.is_login_authorized?('luzzo', '123456')
