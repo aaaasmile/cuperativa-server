@@ -1,6 +1,3 @@
-# file: cup_server_runner.rb
-# Server start using daemon_cup.rb
-
 $:.unshift File.dirname(__FILE__)
 $:.unshift File.dirname(__FILE__) + "/.."
 
@@ -18,9 +15,6 @@ require "database/sendemail_errors"
 include Log4r
 
 module MyGameServer
-
-  ##
-  # Class used to run the server
   class CupServRunner
     def initialize
       @serv_settings = {}
@@ -35,7 +29,7 @@ module MyGameServer
           :send_email => false,
         },
         :publickey_server => "00000", :secret_server => "00",
-        :test_local_service => true, :logpath => "../logs",
+        :test_local_service => true, :logpath => "../../logs",
         :database => {
           :user_db => "",
           :pasw_db => "",
@@ -151,7 +145,7 @@ module MyGameServer
         host = @serv_settings[:ip]
         port = @serv_settings[:port]
 
-        @main_my_srv.create_connector(@serv_settings[:database])
+        #@main_my_srv.create_connector(@serv_settings[:database])
 
         #
         # start the game server

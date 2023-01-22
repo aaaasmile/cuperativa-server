@@ -21,16 +21,9 @@ module MyGameServer
     attr_reader :user_name
     attr_accessor :game_in_pro, :user_lag, :user_type, :user_stat
 
-    # usa un protocollo che prevede CRLF alla fine di ogni comando.
-    # Questo pero crea problemi con yaml quindi l'ho copiato sotto e cambiato
-    #include EventMachine::Protocols::LineText2
-
-    # defualt command handler
     include ParserCmdDef
     include ProtBuildCmd
 
-    ##
-    # Creation, initialization stuff done in method post_init
     def initialize(*args)
       super
     rescue Exception
@@ -154,7 +147,7 @@ module MyGameServer
       send_data(build_cmd(:ver, "#{VER_MAJ}.#{VER_MIN}"))
       # send welcome message
       send_data(build_cmd(:info, "Benvenuto sul server - Cuperativa - (#{PRG_VERSION}) "))
-      send_data(build_cmd(:info, "Per ogni evenienza controlla il forum del sito: http://CUPERATIVA.INVIDO.IT"))
+      send_data(build_cmd(:info, "Per ogni evenienza controlla il sito: http://cup.invido.it"))
       @main_my_srv.add_conn(self)
       #log "Player online #{@clients.size}"
 
@@ -189,14 +182,10 @@ module MyGameServer
       error(detail)
     end
 
-    ##
-    # State leaved info
     def has_leaved?
       @state_con == :logged_out ? true : false
     end
 
-    ##
-    # Line is received
     def receive_line(line)
       #p line
       @ping_request = false # client is alive
@@ -268,8 +257,6 @@ module MyGameServer
       return @ping_request
     end
 
-    ##
-    # log
     def log(str)
       @log.info(str)
     end

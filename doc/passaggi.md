@@ -12,6 +12,7 @@ Il codice di partenza è alquanto datato, ma  l'istallazione dei gems procede co
 - gem install daemons
 - gem install eventmachine (nota che per questo gem è necessario MSYS2)
 - gem install activerecord
+- gem install debug (per avere il debugger in VS Code)
 
 Versioni installate:
 - daemons-1.4.1

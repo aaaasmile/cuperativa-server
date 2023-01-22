@@ -92,6 +92,7 @@ module MyGameServer
     end
 
     def create_connector(db_options)
+      @server_core_log.debug "Create db connector"
       connect_to_db(@server_core_log, db_options)
       @pg_list.set_db_connector(@db_connector)
     end
