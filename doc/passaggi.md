@@ -94,3 +94,6 @@ Allo stesso modo però ricevo l'errore:
     Connector error(connection to server at "127.0.0.1", port 5432 failed: server closed the connection unexpectedly
             This probably means the server terminated abnormally
             before or while processing the request.
+Questo errore è dovuto al database che è nullo. Interessante è che con WSL si ha un errore più leggibile.
+Se nelle opzioni.yaml si mette <auto> nell'host, questo lancia il grep per trovare l'indirizzo IP
+di WSL per collegarsi al database pg.

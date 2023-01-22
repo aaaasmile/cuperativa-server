@@ -36,7 +36,7 @@ module MyGameServer
           :pasw_db => "",
           :mod_type => "pg",
           :db_name => "cupuserdatadb",
-          :host => localhost,
+          :host => "localhost",
           :port => 5432,
           :debug_sql => true,
         },
