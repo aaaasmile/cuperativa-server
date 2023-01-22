@@ -1,38 +1,28 @@
-# file: dbconnector.rb
-#file used to establish the connection with the user mysql db
-
 $:.unshift File.dirname(__FILE__)
+$:.unshift File.dirname(__FILE__) + "/../.."
 
 require "rubygems"
-require "active_record"
-require "dbcup_datamodel"
-#require 'benchmark'
-
-#include Benchmark
+require "cup_user"
+require "cup_classifica"
+require "pg"
+require "yaml"
 
 module MyGameServer
   class DbDataConn
-    def initialize(log, user, password, name_db, mod_type, digest)
+    def initialize(log, user, password, name_db, mod_type, host, port, digest)
       @log = log
       @user = user
       @password = password
       @database_name = name_db
       @mod_type = mod_type
       @digest = digest
-    end
-
-    def connect_sqlite3
-      ActiveRecord::Base.establish_connection(
-        :adapter => "sqlite3",
-        :database => @database_name,
-      )
-      @log.debug "Connect using local sqlite3 database, name: #{@database_name}"
+      @host = host
+      @port = port
+      @active_pg_conn = nil
     end
 
     def connect
       case @mod_type
-      when "sqlite3"
-        connect_sqlite3
       when "pg"
         connect_pg
       else
@@ -41,40 +31,36 @@ module MyGameServer
     end
 
     def connect_pg
-      ActiveRecord::Base.establish_connection(
-        :adapter => "postgresql",
-        :database => @database_name,
-        :username => @user,
-        :password => @password,
-        :host => "127.0.0.1",
-        :statement_limit => 100,
-      )
-      @log.debug "Connected to the pg database #{@database_name} using user: #{@user} and password"
+      @active_pg_conn = PG::Connection.open(:dbname => @database_name, :user => @user, :password => @password, :host => @host, :port => @port)
+      @log.debug "Connected to the database #{@database_name} using user: #{@user} and password: xxxx, host: #{@host}, port: #{@port}"
     end
 
-    def is_login_authorized?(user, password)
-      @log.debug "Checking credential for user #{user}"
-      res = try_to_authenticate(user, password, @digest)
+    def get_user_by_auth(login, password, token)
+      @log.debug "Checking credential for #{login}"
+      res = try_to_authenticate(login, password, token)
       if res.nil?
         @log.debug "retry check in db"
-        res = try_to_authenticate(user, password, @digest)
+        res = try_to_authenticate(login, password, token)
       end
-      return res ? true : false
+      return res
     end
 
-    def try_to_authenticate(user, password, digest)
+    def try_to_authenticate(user, password, token)
       begin
-        user = CupUserDataModel::CupUsers.authenticate(user, password, digest)
+        user = CupUserDataModel::CupUser.authenticate(user, password, token, @digest, @active_pg_conn)
         if user
           user.lastlogin = Time.now
-          user.save
-          return true
+          if (user.remember_token == nil) || (Time.now > user.remember_token_expires_at)
+            user.create_remember_token
+          end
+          user.save(@active_pg_conn)
+          return user
         end
-        #return user ? true : false
-        return false
-      rescue
+        return nil
+      rescue => detail
         # error, try to connect
         @log.error "authenticate is failed with error #{$!}"
+        @log.error detail.backtrace.join("\n")
         connect
         return nil
       end
@@ -86,111 +72,105 @@ module MyGameServer
       begin
         user = CupUserDataModel::CupUsers.find_by_login(username)
         return user
-      rescue
+      rescue => detail
         @log.error "finduser is failed with error #{$!}"
+        @log.error detail.backtrace.join("\n")
         connect
         return nil
       end
     end
 
-    # Find or create an item using userd_id field into table named str_table
-    # str_table: e.g.: CupUserDataModel::ClassificaBri2
-    def generic_find_or_create_classifica(str_table, user_id)
-      class_item = (eval(str_table)).find_by_user_id(user_id)
+    ##
+    # Find or create an item in the ranking table
+    # game_name : string sent in pg_create2 as gioco_name field
+    # user_id:
+    def find_or_create_classifica(game_name, user_id)
+      type = CupDbDataModel::CupClassifica.type_current
+      class_item = CupDbDataModel::CupClassifica.find_by_user_id(game_name, user_id, type, @active_pg_conn)
       unless class_item
         # create a new item
-        class_item = (eval(str_table)).new
-        class_item.default_classifica
+        @log.debug "Create a new classifica #{game_name} for user #{user_id}"
+        class_item = CupDbDataModel::CupClassifica.new
+        class_item.name = game_name
         class_item.user_id = user_id
-        class_item.save
+        class_item.type = type
+        class_item.save(@active_pg_conn)
       end
       return class_item
     end
 
-    ##
-    # Find or create an item in the classment table
-    # gioco_name : string sent in pg_create2 as gioco_name field
-    def find_or_create_classifica(gioco_name, user_id)
-      res_class_item = nil
-      case gioco_name
-      when "Briscola"
-        res_class_item = generic_find_or_create_classifica(
-          "CupUserDataModel::ClassificaBri2", user_id
-        )
-      when "Mariazza"
-        res_class_item = generic_find_or_create_classifica(
-          "CupUserDataModel::ClassificaMariazza", user_id
-        )
-      when "Spazzino"
-        res_class_item = generic_find_or_create_classifica(
-          "CupUserDataModel::ClassificaSpazzino", user_id
-        )
-      when "Tombolon"
-        res_class_item = generic_find_or_create_classifica(
-          "CupUserDataModel::ClassificaTombolon", user_id
-        )
-      when "Scopetta"
-        res_class_item = generic_find_or_create_classifica(
-          "CupUserDataModel::ClassificaScopetta", user_id
-        )
-      when "Briscolone"
-        res_class_item = generic_find_or_create_classifica(
-          "CupUserDataModel::ClassificaBriscolone", user_id
-        )
-      when "Tressette"
-        res_class_item = generic_find_or_create_classifica(
-          "CupUserDataModel::ClassificaTressette", user_id
-        )
+    def create_user(opt)
+      if (opt[:login] == nil) || (opt[:password] == nil) || (opt[:password].length < 6 || opt[:login].length < 5)
+        p opt
+        raise "Wrong Login or password"
       end
-      return res_class_item
-    end
-
-    def create_dummyusers()
-      create_dummy_user("luzzo")
-      create_dummy_user("marco")
-      create_dummy_user("marta")
-    end
-
-    def test_encry(login_name)
-      user = CupUserDataModel::CupUsers.find :first, :conditions => { :login => login_name }
-      puts "test_encry on #{login_name}: " + user.encrypt("123456")
-    end
-
-    def create_robot_players
-      create_dummy_user("robot_player2")
-      create_dummy_user("robot_player3")
-      create_dummy_user("robot_player4")
-      create_dummy_user("robot_player5")
-    end
-
-    def create_dummy_user(login_name)
-      olduser = CupUserDataModel::CupUsers.find :first, :conditions => { :login => login_name }
+      olduser = CupDbDataModel::CupUser.find_by_login(opt[:login], @active_pg_conn)
       if olduser
-        @log.debug "User #{login_name} already in the db, uncomment below if you want to remove it"
-        #olduser.delete
-        #olduser.save
+        raise "User #{opt[:login]} already in the db"
+      end
+      validate_captcha(opt[:token_captcha])
+
+      @log.debug "Creating user #{opt[:login]}"
+      newuser = CupDbDataModel::CupUser.new
+      newuser.set_auth_key(@authkey)
+      newuser.login = opt[:login]
+      newuser.crypted_password = newuser.encrypt(opt[:password])
+      newuser.state = opt[:state]
+      newuser.email = opt[:email]
+      newuser.deck_name = opt[:deck_name]
+      newuser.gender = opt[:gender]
+      newuser.fullname = opt[:fullname]
+      newuser.save(@active_pg_conn)
+      @log.debug "User  #{opt[:login]} in state #{opt[:state]} created"
+      my_user = CupDbDataModel::CupUser.find_by_login(opt[:login], @active_pg_conn)
+      return my_user.id
+    end
+
+    def user_exist?(loginname)
+      return false if (loginname == nil) || (loginname.length < 5)
+      user = CupDbDataModel::CupUser.find_by_login(loginname, @active_pg_conn)
+      return user != nil
+    end
+
+    def remove_user(login)
+      user = CupDbDataModel::CupUser.find_by_login(login, @active_pg_conn)
+      if user
+        user.delete(@active_pg_conn)
+        @log.debug "User #{login} successfully deleted"
+      else
+        @log.warn "User #{login} not found"
+      end
+    end
+
+    def simple_test_pg
+      if !@active_pg_conn
+        @log.error "simple_test_pg: PG is not connected"
         return
       end
-      newuser = CupUserDataModel::CupUsers.new
-      newuser.login = login_name
-      newuser.crypted_password = newuser.encrypt("123456")
-      newuser.state = "active"
-      newuser.save
-      @log.debug "dummy user #{login_name} created"
+      @log.debug "---" +
+                   RUBY_DESCRIPTION +
+                   PG.version_string(true) +
+                   "Server version: #{@active_pg_conn.server_version}" +
+                   "Client version: #{PG.respond_to?(:library_version) ? PG.library_version : "unknown"}" +
+                   "---"
+
+      result = @active_pg_conn.exec("SELECT * from users")
+
+      @log.debug %Q{Expected this to return: ["select * from users"]}
+      @log.debug result.field_values("login")
+      #p result[0]
+      p result[0]["login"], result[0]["crypted_password"], result[0]["email"]
     end
 
-    def create_admin_user(login_name, salt)
-      olduser = CupUserDataModel::CupUsers.find :first, :conditions => { :login => login_name }
-      if olduser
-        @log.debug "User #{login_name} already in the db."
-        return
-      end
-      newuser = CupUserDataModel::CupUsers.new
-      newuser.login = login_name
-      newuser.crypted_password = newuser.password_digest("123456", salt, @digest)
-      newuser.state = "active"
-      newuser.save
-      @log.debug "admin user #{login_name} created"
+    def test_encry(login_name, password)
+      user = CupDbDataModel::CupUser.find_by_login(login_name, @active_pg_conn)
+      return @log.debug "User #{login_name} not found" if !user
+
+      user.set_auth_key(@authkey)
+      p encr = user.encrypt(password)
+      p stored_enc = user.fields["crypted_password"]
+      @log.debug "test_encry on #{login_name}: " + encr + " Email: #{user.fields["email"]}" + " Password-db: #{stored_enc}"
+      @log.debug "Same? #{stored_enc == encr}"
     end
   end
 
@@ -202,36 +182,37 @@ module MyGameServer
                                                      db_options[:pasw_db],
                                                      db_options[:name_db],
                                                      db_options[:mod_type],
+                                                     db_options[:host],
+                                                     db_options[:port],
                                                      db_options[:digest])
         @db_connector.connect
         log.debug "DB connected"
         #p @db_connector
       rescue => detail
-        log "Connector error(#{$!})"
+        log.error "Connector error(#{$!})"
+        log.error detail.backtrace.join("\n")
       end
     end
-  end
-end #module
+
+    def connect_from_settingfile(log, file_name)
+      file_name = File.dirname(__FILE__) + "/../" + file_name
+      yamloptions = YAML::load_file(file_name)
+      connect_to_db(log, yamloptions[:database])
+      return @db_connector
+    end
+  end #module Connector
+end #module MyGameServer
 
 if $0 == __FILE__
   require "rubygems"
-  require "log4r"
+  require "lib/log4r"
   include Log4r
+  include MyGameServer::Connector
 
-  log = Log4r::Logger.new("serv_main").add "stdout"
+  Log4r::Logger.new("DbConnector")
+  Log4r::Logger["DbConnector"].outputters << Outputter.stdout
+  log = Log4r::Logger["DbConnector"]
 
-  # admin is a user add on local database instance for testing purpose
-  #pg_list = MyGameServer::PendingGameList.new
-  #ctrl = pg_list.init_from_setting("options.yaml") # connect to the db
-  #ctrl.create_dummyusers
-  #ctrl.create_admin_user
-  #ctrl.create_robot_players
-  #p res = ctrl.is_login_authorized?('luzzo', '123456')
-  #ctrl.connect
-  #p res = ctrl.finduser("Luzzo")
-  #user_id = 7
-  #p res = ctrl.find_or_create_classifica('Briscola', user_id)
-  #res.score += 10
-  #res.save
-  #ctrl.test_encry('luzzo')
+  conn = connect_from_settingfile(log, "options.yaml")
+  conn.simple_test_pg
 end

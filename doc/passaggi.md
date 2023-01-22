@@ -1,24 +1,33 @@
 # Cuperativa-server
+La motivazione di questo progetto è quella di avere un gestore dei giochi di 
+carte della cuperativa via tcp. L'idea è di avere i robots che si collegano 
+a questo server come nel 2012 (progetto D:\old_stuff\PC_Jim_2016\Projects\ruby\Cuperativa_All_version_svn\cuperativa0508_railsplayground_last), 
+mentre la parte che gestisce tutto il resto viene gestita in golang nel progetto 
+D:\Projects\go-lang\cup-service\cup-service. Il client è nel browser e si collega con cup-service.
+cup-service gestisce tutti websocket, le risorse in javascript e altri collegamenti al db
+che non siano gestiti da questo server. Questo per evitare di riscrivere in go tutta la logica
+dei giochi che è già pronta in ruby. 
+La parte che gestisce l'accesso al database è quella che ho cambiato nel progetto
+sinatra D:\scratch\sinatra\cup_sinatra_local\middlewares\cup_srv\database
 
+## Installazione
 Ho installato ruby 3.2.0 in versione windows con devkit. Mysys2 l'ho riciclato da quello
 già installato, ma ho fatto un update usando la finestra cmd finale (opzioni 1,2,3 in serie).
 Per avere una powershell che funziona con ruby si usa: 
 
-    $env:path = "D:\ruby\ruby_3_2_1\bin;" + $env:path
+    $env:path = "D:\ruby\ruby_3_2_0\bin;" + $env:path
 
 ## Gem necessari
 Il codice di partenza è alquanto datato, ma  l'istallazione dei gems procede come segue:
 
 - gem install daemons
 - gem install eventmachine (nota che per questo gem è necessario MSYS2)
-- gem install activerecord
 - gem install debug (per avere il debugger in VS Code)
 - gem install pg
 
 Versioni installate:
 - daemons-1.4.1
 - eventmachine-1.2.7
-- activerecord-7.0.4.1
 
 ## Visual Code
 Ho installato due extension per ruby. La prima è Ruby e la seconda è Rufo-Ruby formatter.
@@ -75,3 +84,13 @@ Poi ho lanciato le seguenti SQL:
 Come riferimento vedi il porting che ho fatto con sinatra:
 D:\scratch\sinatra\cup_sinatra_local 
 qui si trova un server che usa pg.
+
+## Active Record
+Ho tolto il riferimento ad Active Record in quanto non riesco a farlo andare 
+mentre nel progetto D:\scratch\sinatra\cup_sinatra_local\middlewares\cup_srv\database
+faccio tutto usando SQL in pg. 
+Allo stesso modo però ricevo l'errore:
+
+    Connector error(connection to server at "127.0.0.1", port 5432 failed: server closed the connection unexpectedly
+            This probably means the server terminated abnormally
+            before or while processing the request.

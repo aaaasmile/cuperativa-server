@@ -13,5 +13,8 @@
   :user_db: <db user>
   :db_name: cupuserdatadb
   :pasw_db: <db password>
+  :host: localhost
+  :port: 5432
+  :debug_sql: true
 :logpath: ../../logs
 :autorestart_on_err: false
