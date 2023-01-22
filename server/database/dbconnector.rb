@@ -9,16 +9,24 @@ require "yaml"
 
 module MyGameServer
   class DbDataConn
-    def initialize(log, user, password, name_db, mod_type, host, port, digest)
+    def initialize(log, user, password, db_name, mod_type, host, port, digest)
       @log = log
       @user = user
       @password = password
-      @database_name = name_db
+      @database_name = db_name
       @mod_type = mod_type
       @digest = digest
+      if host == "<auto>"
+        host_to_connect = `grep -m 1 nameserver /etc/resolv.conf | awk '{print $2}'`
+        host = host_to_connect.gsub("\n","")
+        @log.debug "Autoresolved host #{host}"
+      end
       @host = host
       @port = port
       @active_pg_conn = nil
+      if !@user or !@password or !@database_name
+        @log.error "Credential for connection invalid: #{@user} or #{@password} or #{@database_name}"
+      end
     end
 
     def connect
@@ -180,7 +188,7 @@ module MyGameServer
         @db_connector = MyGameServer::DbDataConn.new(log,
                                                      db_options[:user_db],
                                                      db_options[:pasw_db],
-                                                     db_options[:name_db],
+                                                     db_options[:db_name],
                                                      db_options[:mod_type],
                                                      db_options[:host],
                                                      db_options[:port],
