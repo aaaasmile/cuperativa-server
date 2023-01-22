@@ -1,28 +1,26 @@
-#file: core_game_base.rb
 #Common card game basic handling
 
 $:.unshift File.dirname(__FILE__)
 
-require 'mod_core_queue'
-require 'player_on_game'
-require 'deck_info'
+require "mod_core_queue"
+require "player_on_game"
+require "deck_info"
 
 ##
 # Class used to avoid reentrant code in core
 class PlayerInputHandler
-  
   def initialize(core)
     @actions_queue = []
     @core = core
     @blocked = 0
     @log = Log4r::Logger.new("coregame_log::PlayerInputHandler")
   end
-  
+
   def block_start
     @blocked += 1
     @log.debug "block_start (#{@blocked})"
   end
-  
+
   def is_input_blocked?(arg)
     if @blocked > 0
       @log.debug "Queue action #{arg[:mth]}"
@@ -31,7 +29,7 @@ class PlayerInputHandler
     end
     return false
   end
-  
+
   def block_end
     @blocked -= 1
     @log.debug "block_end (#{@blocked}):"
@@ -49,75 +47,81 @@ end
 ##
 # Interface used on player to call the core
 class CoreOnPlayer
-  
   def initialize
-    @player_input_hdl =  PlayerInputHandler.new(self)
+    @player_input_hdl = PlayerInputHandler.new(self)
   end
-  
+
   def alg_player_cardplayed(player, lbl_card)
     return @player_input_hdl.is_input_blocked?(
-       {:mth =>:alg_player_cardplayed, :player => player, :lbl_card => lbl_card })
+             { :mth => :alg_player_cardplayed, :player => player, :lbl_card => lbl_card }
+           )
   end
-  
+
   def alg_player_cardplayed_arr(player, arr_lbl_card)
     return @player_input_hdl.is_input_blocked?(
-       {:mth =>:alg_player_cardplayed_arr, :player => player, :arr_lbl_card => arr_lbl_card })
+             { :mth => :alg_player_cardplayed_arr, :player => player, :arr_lbl_card => arr_lbl_card }
+           )
   end
-  
+
   def alg_player_declare(player, name_decl)
     return @player_input_hdl.is_input_blocked?(
-       {:mth =>:alg_player_declare, :player => player, :name_decl => name_decl })
+             { :mth => :alg_player_declare, :player => player, :name_decl => name_decl }
+           )
   end
-  
-  def alg_player_change_briscola(player, card_briscola, card_on_hand )
-     return @player_input_hdl.is_input_blocked?(
-       {:mth =>:alg_player_change_briscola, :player => player, :card_briscola => card_briscola, :card_on_hand => card_on_hand })
+
+  def alg_player_change_briscola(player, card_briscola, card_on_hand)
+    return @player_input_hdl.is_input_blocked?(
+             { :mth => :alg_player_change_briscola, :player => player, :card_briscola => card_briscola, :card_on_hand => card_on_hand }
+           )
   end
-  
+
   def alg_player_resign(player, reason)
     return @player_input_hdl.is_input_blocked?(
-       {:mth =>:alg_player_resign, :player => player, :reason => reason })
+             { :mth => :alg_player_resign, :player => player, :reason => reason }
+           )
   end
-  
+
   def gui_new_segno
     return @player_input_hdl.is_input_blocked?(
-       {:mth =>:gui_new_segno })
+             { :mth => :gui_new_segno }
+           )
   end
-  
+
   def gui_new_match(players)
     return @player_input_hdl.is_input_blocked?(
-       {:mth =>:gui_new_match, :players => players })
+             { :mth => :gui_new_match, :players => players }
+           )
   end
-  
+
   def alg_player_gameinfo(arg)
     return @player_input_hdl.is_input_blocked?(
-      {:mth =>alg_player_gameinfo, :arg => arg })
+             { :mth => alg_player_gameinfo, :arg => arg }
+           )
   end
-  
+
   def alg_was_called(arg)
     mth = arg[:mth]
     case mth
-      when :alg_player_cardplayed
-        alg_player_cardplayed(arg[:player], arg[:lbl_card])
-      when :alg_player_cardplayed_arr
-        alg_player_cardplayed_arr(arg[:player], arg[:arr_lbl_card])
-      when :alg_player_declare
-        alg_player_declare(arg[:player], arg[:name_decl])
-      when :alg_player_resign
-        alg_player_resign(arg[:player], arg[:reason])
-      when :alg_player_change_briscola
-        alg_player_change_briscola(arg[:player], arg[:card_briscola], arg[:card_on_hand])
-      when :gui_new_segno
-        gui_new_segno()
-      when :gui_new_match
-        gui_new_match(arg[:players])
-      when :alg_player_gameinfo
-        alg_player_gameinfo(arg[:arg])
-      else
-        @log.error "Queued input method #{mth} not recognized"
+    when :alg_player_cardplayed
+      alg_player_cardplayed(arg[:player], arg[:lbl_card])
+    when :alg_player_cardplayed_arr
+      alg_player_cardplayed_arr(arg[:player], arg[:arr_lbl_card])
+    when :alg_player_declare
+      alg_player_declare(arg[:player], arg[:name_decl])
+    when :alg_player_resign
+      alg_player_resign(arg[:player], arg[:reason])
+    when :alg_player_change_briscola
+      alg_player_change_briscola(arg[:player], arg[:card_briscola], arg[:card_on_hand])
+    when :gui_new_segno
+      gui_new_segno()
+    when :gui_new_match
+      gui_new_match(arg[:players])
+    when :alg_player_gameinfo
+      alg_player_gameinfo(arg[:arg])
+    else
+      @log.error "Queued input method #{mth} not recognized"
     end
   end
-  
 end #end CoreOnPlayer
 
 ##
@@ -126,19 +130,19 @@ class CoreGameBase < CoreOnPlayer
   alias :super_alg_player_change_briscola :alg_player_change_briscola
   alias :super_alg_player_declare :alg_player_declare
   alias :super_alg_player_gameinfo :alg_player_gameinfo
-  
+
   # array constant throw warnings. Use static variable to avoid warnings.
   @@NOMI_SEMI = ["basto", "coppe", "denar", "spade"]
   @@NOMI_SYMB = ["cope", "zero", "xxxx", "vuot"]
-  
+
   include CoreGameQueueHandler
-  
+
   ##
   # constructor
   def initialize
     super
     # simple state machine processor, use it as stack, the last event
-    # submitted is the first processed 
+    # submitted is the first processed
     @proc_queue = []
     # suspend queue event flags - used if gui have timeouts to delay the game
     @suspend_queue_proc = false
@@ -149,10 +153,10 @@ class CoreGameBase < CoreOnPlayer
     @viewers = {}
     # logger
     @log = Log4r::Logger["coregame_log"]
-    
+
     @deck_information = GamesDeckInfo.new
   end
-  
+
   def get_curr_stack_call
     str = "Stack trace:\n"
     begin
@@ -162,52 +166,51 @@ class CoreGameBase < CoreOnPlayer
     end
     return str
   end
-  
+
   def add_viewer(the_viewer)
     @viewers[the_viewer.name] = the_viewer
     info = on_viewer_get_state()
     the_viewer.game_state(info)
   end
-  
+
   def on_viewer_get_state()
     return {}
   end
-  
+
   def remove_viewer(name)
     @viewers.delete(name)
   end
-  
+
   def inform_viewers(*args)
-    @viewers.each{|k,viewer| viewer.game_action(args)}
+    @viewers.each { |k, viewer| viewer.game_action(args) }
   end
-  
+
   def set_specific_options(options)
     @log.warn("Ignore specific options")
   end
-  
+
   def num_cards_on_mazzo
     return @mazzo_gioco.size
   end
 
-  
   def self.nomi_semi
     @@NOMI_SEMI
   end
-  
+
   def self.nomi_simboli
     @@NOMI_SYMB
   end
-  
+
   def is_matchsuitable_forscore?
     return true
   end
-  
+
   ##
   # Provides the card logical symbol (e.g for _7c the result is :set)
   def get_card_logical_symb(card_lbl)
     #return @deck_info[card_lbl][:symb]
   end
-  
+
   ##
   # Provides the player index before the provided
   def player_ix_beforethis(num_players, ix_player)
@@ -215,19 +218,19 @@ class CoreGameBase < CoreOnPlayer
     if ix_res < 0
       ix_res = num_players - 1
     end
-    return  ix_res
+    return ix_res
   end
-  
+
   ##
   # Provides the player index after the provided
   def player_ix_afterthis(num_players, ix_player)
     ix_res = ix_player + 1
-    if ix_res >=  num_players
+    if ix_res >= num_players
       ix_res = 0
     end
-    return  ix_res
+    return ix_res
   end
-  
+
   ##
   # Calculate round players order
   # arr_players: array of players
@@ -240,23 +243,23 @@ class CoreGameBase < CoreOnPlayer
       if e == first_ix
         ins_point = 0
         onlast = false
-      end 
+      end
       round_players.insert(ins_point, arr_players[e])
-      ins_point =  onlast ?  -1 : ins_point + 1         
+      ins_point = onlast ? -1 : ins_point + 1
     end
     return round_players
   end
-  
+
   ##
   # Provides a complete card name
   def nome_carta_completo(lbl_card)
     return @deck_information.nome_carta_completo(lbl_card)
   end
-  
+
   def get_card_logical_symb(card_lbl)
     return @deck_information.get_card_logical_symb(card_lbl)
   end
- 
+
   def get_deck_info
     return @deck_information
   end
@@ -264,7 +267,6 @@ class CoreGameBase < CoreOnPlayer
   def leave_on_less_players?()
     return true
   end
-
 end
 
 ##
@@ -288,7 +290,7 @@ class AlgCpuPlayerBase
   def onalg_new_giocata(carte_player) end
   def onalg_new_match(players) end
   def onalg_newmano(player) end
-  def onalg_have_to_play(player,command_decl_avail) end
+  def onalg_have_to_play(player, command_decl_avail) end
   def onalg_player_has_played(player, card) end
   def onalg_player_has_declared(player, name_decl, points) end
   def onalg_pesca_carta(carte_player) end
@@ -308,5 +310,3 @@ class ViewerGameBase
   def alg_changed(info) end
   def current_state(info) end
 end
-
-

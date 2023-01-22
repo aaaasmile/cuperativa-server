@@ -1,6 +1,3 @@
-# file: nal_srv_algorithm.rb
-# Network abstraction layer on server for algorithm callbacks
-
 $:.unshift File.dirname(__FILE__)
 $:.unshift File.dirname(__FILE__)  + '/..'
 

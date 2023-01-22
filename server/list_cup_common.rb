@@ -1,10 +1,10 @@
-#file list_cup_common.rb
-
 require "rubygems"
 require "database/dbconnector"
 
 module MyGameServer
   class ListCupCommon
+    include MyGameServer::Connector
+
     def initialize
       @log = Log4r::Logger["serv_main"]
       @dir_log = File.dirname(__FILE__) + "/../../logs"
@@ -31,14 +31,7 @@ module MyGameServer
     def init_from_setting(file_name)
       yamloptions = YAML::load_file(file_name)
       set_dir_log(yamloptions[:logpath])
-      user_db = yamloptions[:database][:user_db]
-      use_sqlite3 = yamloptions[:database][:use_sqlite3]
-      password_db = yamloptions[:database][:pasw_db]
-      name_db = yamloptions[:database][:db_name]
-      db_connector = MyGameServer::DbDataConn.new(@log, user_db, password_db, name_db)
-      db_connector.use_sqlite3 = use_sqlite3
-      db_connector.connect
-      set_db_connector(db_connector)
+      connect_to_db(@log, yamloptions[:database])
     end
 
     def set_db_connector(db_connector)

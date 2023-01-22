@@ -194,6 +194,17 @@ module MyGameServer
       @log.debug "admin user #{login_name} created"
     end
   end
+
+  module Connector
+    def connect_to_db(log, db_options)
+      @db_connector = MyGameServer::DbDataConn.new(log,
+                                                   db_options[:user_db],
+                                                   db_options[:pasw_db],
+                                                   db_options[:name_db],
+                                                   db_options[:mod_type])
+      @db_connector.connect
+    end
+  end
 end #module
 
 if $0 == __FILE__

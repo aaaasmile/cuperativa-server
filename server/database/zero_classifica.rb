@@ -13,12 +13,14 @@ include Log4r
 class ZeroScoreClassificas < MyGameServer::BasicDbConnector
   attr_accessor :all_score_tozero
 
+  include MyGameServer::Connector
+
   def initialize
     Log4r::Logger.new("connector").add "stdout"
     @log = Log4r::Logger.new("connector::ZeroScoreClassificas")
     @settings_filename = File.dirname(__FILE__) + "/../options.yaml"
     @options = YAML::load_file(@settings_filename)
-    connect_to_db(@options[:database])
+    connect_to_db(@log, @options[:database])
 
     # CAUTION: this if true force ALL records to the default value
     @all_score_tozero = false
@@ -26,15 +28,6 @@ class ZeroScoreClassificas < MyGameServer::BasicDbConnector
     @tables_class = ["CupUserDataModel::ClassificaBri2", "CupUserDataModel::ClassificaMariazza",
                      "CupUserDataModel::ClassificaSpazzino", "CupUserDataModel::ClassificaTombolon",
                      "CupUserDataModel::ClassificaScopetta", "CupUserDataModel::ClassificaTressette", "CupUserDataModel::ClassificaBriscolone"]
-  end
-
-  def connect_to_db(db_options)
-    @db_connector = MyGameServer::DbDataConn.new(@server_core_log,
-                                                 db_options[:user_db],
-                                                 db_options[:pasw_db],
-                                                 db_options[:name_db],
-                                                 db_options[:mod_type])
-    @db_connector.connect
   end
 
   ##

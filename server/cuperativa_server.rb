@@ -33,6 +33,7 @@ module MyGameServer
 
     include Singleton
     include ProtBuildCmd # for build_cmd
+    include MyGameServer::Connector
 
     def initialize
       @dir_log = File.dirname(__FILE__) + "/../../logs"
@@ -90,13 +91,8 @@ module MyGameServer
       @game_in_progress = {}
     end
 
-    def connect_to_db(db_options)
-      @db_connector = MyGameServer::DbDataConn.new(@server_core_log,
-                                                   db_options[:user_db],
-                                                   db_options[:pasw_db],
-                                                   db_options[:name_db],
-                                                   db_options[:mod_type])
-      @db_connector.connect
+    def create_connector(db_options)
+      connect_to_db(@server_core_log, db_options)
       @pg_list.set_db_connector(@db_connector)
     end
 

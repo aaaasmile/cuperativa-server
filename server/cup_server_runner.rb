@@ -151,7 +151,7 @@ module MyGameServer
         host = @serv_settings[:ip]
         port = @serv_settings[:port]
 
-        @main_my_srv.connect_to_db(@serv_settings[:database])
+        @main_my_srv.create_connector(@serv_settings[:database])
 
         #
         # start the game server
