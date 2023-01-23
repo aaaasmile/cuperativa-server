@@ -3,3 +3,4 @@
 server/options.yaml
 robots/bot_sample/robot.yaml
 /logs/*.log
+robots/bot_player2_join/robot.yaml

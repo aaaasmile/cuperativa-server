@@ -174,7 +174,7 @@ class CuperativaBot
 
     #p info_conn_hash
     #p @app_settings
-    @control_net_conn.connect_to_server_remote(info_conn_hash)
+    @control_net_conn.connect_to_remote_server(info_conn_hash)
     @proc_thread_run = Thread.new {
       @state_game = :initial
       while @state_game != :end
