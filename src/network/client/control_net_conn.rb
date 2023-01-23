@@ -250,16 +250,15 @@ class ControlNetConnection
     exit
   end
 
-  ##
-  # Background read, thread handler
   def background_read
     @log.debug "Background read start"
     begin
       frame_args = { :decoded => false }
-      @frame_incoming = WebSocket::Frame::Incoming::Client.new(frame_args)
-      frame_pong = WebSocket::Frame::Outgoing::Client.new(:type => "pong")
-      ignore_next = false
+      @frame_incoming = WebSocket::Frame::Incoming::Client.new(frame_args) # TODO parse the incoming json
+
       while true
+        #dat = @socket_srv.gets
+        #p dat
         unless recv_data = @socket_srv.getc
           p [:data_rec_null, @socket_srv]
           @log.warn "data nil, no other way that terminate the read"
@@ -267,36 +266,25 @@ class ControlNetConnection
           p @socket_srv.getc
           break
         end
-        #p [:c, recv_data]
+        p [:c, recv_data]
         @frame_incoming << recv_data
         while payload_decoded = @frame_incoming.next
           #p [:decode_next, payload_decoded]
           if payload_decoded.type == :ping
-            @socket_srv.write(frame_pong.to_s)
+            #@socket_srv.write(frame_pong.to_s)
             #@log.debug "Ping - respond with pong"
           else
             @log.debug "<server> #{payload_decoded.data}" if @server_msg_aredebugged
             parse_server_message(JSON.parse(payload_decoded.data))
           end
         end
-      end #end read
-      @log.warn "Exit from the read loop, why?"
-    rescue => detail
-      @log.error "socket read end: (#{$!})"
-      @log.error detail.backtrace.join("\n")
-    rescue
-      @log.error "something wrong on read: (#{$!})"
-    ensure
-      begin
-        @log.debug "Background read terminated, close the socket (exit was called somewhere?)"
-        if @socket_srv
-          @socket_srv.close
-          @socket_srv = nil
-          @model_net_data.event_cupe_raised(:ev_client_disconnected)
-        end
-      rescue => detail1
-        @log.error detail1.backtrace.join("\n")
       end
+    rescue
+      @log.warn "socket read end: (#{$!})"
+    ensure
+      @log.debug "Background read terminated"
+      @socket_srv = nil
+      @model_net_data.event_cupe_raised(:ev_client_disconnected)
     end
   end
 

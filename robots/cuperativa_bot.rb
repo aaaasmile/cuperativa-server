@@ -154,7 +154,7 @@ class CuperativaBot
 
     @control_net_conn = ControlNetConnection.new(self)
     @model_net_data = ModelNetData.new
-    @model_net_data.add_observer("cuperativa_gui", self)
+    @model_net_data.add_observer("cuperativa_bot", self)
     @model_net_data.add_observer("control_net", @control_net_conn)
     @control_net_conn.set_model_view(@model_net_data, self)
     # ready to use the model
@@ -241,6 +241,11 @@ class CuperativaBot
     else
       @log.debug "Less player wait for substitute"
     end
+  end
+
+  def ntfy_state_exit
+    @log.info "Server is disconnected, exit for me"
+    exit
   end
 
   def join_current_pg_game

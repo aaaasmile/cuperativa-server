@@ -144,6 +144,7 @@ module MyGameServer
       @main_my_srv = CuperativaServer.instance
       @send_email_on_err = @main_my_srv.serv_settings[:email_crash][:send_email]
 
+      @log.debug "Send welcome msg to the new arrived"
       send_data(build_cmd(:ver, "#{VER_MAJ}.#{VER_MIN}"))
       send_data(build_cmd(:info, "Benvenuti sul server - Cuperativa - (#{PRG_VERSION}) "))
       send_data(build_cmd(:info, "Made by: invido.it (c) 2004 - 2023"))
