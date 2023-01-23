@@ -225,7 +225,7 @@ class ControlNetConnection
     #start and admin interface thread
     @admin_thread = Thread.new {
       begin
-        server_cmd = TCPServer.new(admin_port)
+        server_cmd = TCPServer.new("127.0.0.1", admin_port)
         @log.debug "Admin port is #{admin_port}"
         loop do
           client = server_cmd.accept    # Wait for a client to connect

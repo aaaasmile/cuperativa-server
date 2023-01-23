@@ -142,15 +142,11 @@ module MyGameServer
       @user_name = ""
       @state_con = :created
       @main_my_srv = CuperativaServer.instance
-      @conh_settings = @main_my_srv.serv_settings[:connhandler_opt]
       @send_email_on_err = @main_my_srv.serv_settings[:email_crash][:send_email]
 
-      @version_to_package = @conh_settings[:version_to_package]
-      # send server version
       send_data(build_cmd(:ver, "#{VER_MAJ}.#{VER_MIN}"))
-      # send welcome message
-      send_data(build_cmd(:info, "Benvenuto sul server - Cuperativa - (#{PRG_VERSION}) "))
-      send_data(build_cmd(:info, "Per ogni evenienza controlla il sito: http://cup.invido.it"))
+      send_data(build_cmd(:info, "Benvenuti sul server - Cuperativa - (#{PRG_VERSION}) "))
+      send_data(build_cmd(:info, "Made by: invido.it (c) 2004 - 2023"))
       @main_my_srv.add_conn(self)
       #log "Player online #{@clients.size}"
 
@@ -177,8 +173,10 @@ module MyGameServer
           end
         end
       rescue => detail
-        error_trace(detail, "Connection post_init", @log, @send_email_on_err)
+        error_trace(detail, "Connection post_init ip", @log, @send_email_on_err)
       end
+    rescue => detail
+      error_trace(detail, "Connection post_init generic", @log, @send_email_on_err)
     rescue Exception
       msg = "post_init error(#{$!})"
       error_msg(msg, "Connection", @log, @send_email_on_err)
