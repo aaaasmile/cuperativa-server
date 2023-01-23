@@ -9,7 +9,7 @@ require "src/network/prot_parsmsg"
 require "src/network/prot_buildcmd"
 require "mod_user_conn_handl"
 require "err_logger"
-require "src/base/core/cup_strings"
+require "json"
 
 module MyGameServer
   $conn_counter = 0
@@ -283,7 +283,8 @@ module MyGameServer
       #sleep rand
       # Guardando il codice in cpp sembra che send_data scriva i dati
       # in una coda di output. Quindi un'ulteriore code non dovrebbe servire
-      super(data)
+      payload = JSON.generate(data.chomp)
+      super(payload)
     end
 
     #

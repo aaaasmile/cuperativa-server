@@ -112,7 +112,7 @@ end
 
 if $0 == __FILE__
   require "rubygems"
-  require "log4r"
+  require "lib/log4r"
   include Log4r
 
   Log4r::Logger.new("myuserctrl").outputters << Outputter.stdout

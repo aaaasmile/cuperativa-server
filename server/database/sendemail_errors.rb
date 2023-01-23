@@ -90,7 +90,7 @@ END_OF_MESSAGE
 end
 
 if $0 == __FILE__
-  require "log4r"
+  require "lib/log4r"
   include Log4r
 
   mylog = Log4r::Logger.new("email_log_notifier")

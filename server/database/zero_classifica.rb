@@ -3,7 +3,7 @@
 
 require "rubygems"
 require "dbconnector"
-require "log4r"
+require "lib/log4r"
 require "dbcup_datamodel"
 
 include Log4r

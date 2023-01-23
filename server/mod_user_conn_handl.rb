@@ -15,7 +15,7 @@ module UserConnCmdHanler
   def cmdh_chatlobby(msg_details)
     @log.debug "CHATLOBBY handler #{msg_details}"
     # send the chat message to all players in the lobby but not the sender
-    cmd_for_all = build_cmd(:chat_lobby, "#{@user_name}>#{msg_details}")
+    cmd_for_all = build_cmd(:chat_lobby, JSON.generate(:username => @user_name, :body => msg_details, :time => Time.now.to_s))
     @main_my_srv.send_cmd_to_all(cmd_for_all)
   end
 
@@ -24,7 +24,7 @@ module UserConnCmdHanler
   def cmdh_chattavolo(msg_details)
     log_table "CHAT_T:#{@user_name}> #{msg_details}"
     # send the chat message to all on the table
-    cmd_chat = build_cmd(:chat_tavolo, "#{@user_name}>#{msg_details}")
+    cmd_chat = build_cmd(:chat_tavolo, JSON.generate(:username => @user_name, :body => msg_details, :time => Time.now.to_s))
     # TO DO: filter fuck words
     if @game_in_pro
       @main_my_srv.send_cmd_to_gameinpro(@game_in_pro.ix_game, cmd_chat)
@@ -35,63 +35,99 @@ module UserConnCmdHanler
   # handle command LOGIN
   def cmdh_login(msg_details)
     @log.debug "LOGIN handler"
+    begin
+      msg_json = JSON.parse(msg_details)
+      name = msg_json["name"]
+      password64 = msg_json["password"]
+      token = msg_json["token"]
+    rescue
+      @log.error "Malformed login request #{msg_details}"
+      close_connection_after_writing("Login failed")
+      return
+    end
     if @state_con != :logged_in
       code_err = 0
-      name, password64 = msg_details.split(",")
       unless name
         send_data(build_cmd(:login_error,
-                            YAML.dump(:code => 4, :info => "username invalido")))
-        send_data(build_cmd(:info, "Login fallito, username invalido."))
-        @log.error "login of with name nil failed"
+                            JSON.generate(:code => 4, :info => "login invalido, errore di protocollo")))
+        send_data(build_cmd(:info, "Login fallito, login invalido."))
+        @log.error "login with name nil failed"
         # close connection after writing data. Unbind callback is than called
-        close_connection_after_writing
+        close_connection_after_writing("Login failed")
         return
       end
       # avoid funny characters on name
       name = name.slice(/\A\w[\w\.\-_@]+\z/)
-      # if guest add id
-      name_guest = @main_my_srv.analyze_guest(name)
 
-      if name_guest != name
-        # guest login
-        @log.debug "Guest login with assigned name #{name_guest}"
-        name = name_guest
-        @is_guest = true
-        code_err = @main_my_srv.set_guest_connected(name, self)
+      # usual login of registered player
+      password = ""
+      password = Base64::decode64(password64) if password64
+      dbuser = @main_my_srv.accept_name?(name, password, token, self)
+      roles = []
+      if dbuser != nil
+        code_err = 0
+        token = dbuser.remember_token
+        user_id = dbuser.id
+        roles = dbuser.roles
       else
-        # usual login of registered player
-        password = ""
-        password = Base64::decode64(password64) if password64
-        code_err = @main_my_srv.accept_name?(name, password, self)
+        code_err = 1
       end
-      log "player name to log is: #{name}"
 
-      if code_err == 0
+      log "player name to login is: #{name}, user id is #{user_id}"
+
+      if (code_err == 0) && (name != "") && (name != nil)
         # login OK
-        @user_name = name
-        if @main_my_srv.game_inprog_player_reconnect?(self)
-          str_cmd = YAML.dump({ :cmd => :game_in_progress })
-          send_data(build_cmd(:player_reconnect, str_cmd))
-          log "Player #{name} reconnect to a game in progress"
-        else
-          send_data(build_cmd(:login_ok, "#{name}"))
-          log "Player #{name} logged in"
-        end
-        # when a new player is logged in, inform also other players
-        @state_con = :logged_in
-        @main_my_srv.inform_all_about_newuser(self)
+        post_login_ok(name, token, user_id, roles)
       else
         # player login failed
-        send_data(build_cmd(:login_error, YAML.dump(:code => code_err, :info => "Login fallito, password oppure login non validi")))
+        send_data(build_cmd(:login_error, JSON.generate(:code => code_err, :info => "Login fallito, password oppure login non validi")))
         @log.error "login of #{name} failed"
-        send_data(build_cmd(:info, "Login fallito, password oppure login non validi."))
+        send_data(build_cmd(:info, "Login fallito, password oppure utente non validi."))
         # close connection after writing data. Unbind callback is than called
-        close_connection_after_writing
+        close_connection_after_writing("login failed")
       end
+    else
+      log "#{name} already logged in"
+      str_cmd = JSON.generate({ :cmd => :login_ok, :name => name, :token => token })
+      send_data(build_cmd(:login_ok, str_cmd))
     end
   rescue => detail
     @log.error "cmdh_login error(#{$!})"
     error(detail)
+  end
+
+  def cmdh_logout(msg_details)
+    @log.debug "LOGOUT handler"
+    msg_json = JSON.parse(msg_details)
+    name = msg_json["name"]
+    if @user_name == name
+      @state_con = :logged_out
+      @main_my_srv.on_userlogged_out(self)
+      str_cmd = JSON.generate({ :name => name })
+      send_data(build_cmd(:logout_ok, str_cmd))
+    end
+  end
+
+  def post_login_ok(name, token, user_id, roles)
+    @user_name = name
+    @user_id = user_id
+    str_cmd = JSON.generate({ :cmd => :login_ok, :name => name, :token => token, :roles => roles })
+    send_data(build_cmd(:login_ok, str_cmd))
+    log "Player #{name} logged in"
+    @state_con = :logged_in
+
+    game_inp = @main_my_srv.game_inprog_player_reconnect?(self)
+    if game_inp != nil
+      str_cmd = JSON.generate({ :status => :ongoing, :game_state => {} }) #TODO set game_state from game_inp status
+      send_data(build_cmd(:game_status, str_cmd))
+      log "Player #{name} reconnect to a game in progress"
+    elsif @main_my_srv.is_user_owner_of_pgitem?(self)
+      str_cmd = JSON.generate({ :status => :requested, :game_state => {} })
+      send_data(build_cmd(:game_status, str_cmd))
+      log "Player #{name} has created a game previously"
+    end
+    # when a new player is logged in, inform also other players
+    @main_my_srv.inform_all_about_newuser(self)
   end
 
   ##
@@ -121,7 +157,7 @@ module UserConnCmdHanler
   ##
   # Handle command PGCREATE2
   def cmdh_pg_create2(msg_details)
-    info = YAML::load(msg_details)
+    info = JSON.parse(msg_details)
     @log.debug "PGCREATE2: #{ObjTos.stringify(info)}"
     @main_my_srv.pending_game_create2(self, info)
   end
@@ -141,7 +177,7 @@ module UserConnCmdHanler
   end
 
   def cmdh_game_view(msg_details)
-    info = YAML::load(msg_details)
+    info = JSON.parse(msg_details)
     @log.debug "GAMEVIEW: #{info[:cmd]}"
     @main_my_srv.game_view_parse_cmd(self, info)
   end
@@ -157,7 +193,8 @@ module UserConnCmdHanler
       @main_my_srv.join_req_private(self, pg_ix, pin)
     else
       # format error
-      send_data build_cmd(:pg_join_reject, "PGJOINPIN Message format error")
+      info = JSON.generate({ :ix => pg_index, :err_code => "PGJOINPIN Message format error" })
+      send_data(build_cmd(:pg_join_reject2, info))
     end
   end
 
@@ -300,7 +337,7 @@ module UserConnCmdHanler
   end
 
   def cmdh_restart_withanewgame(msg_details)
-    info = YAML::load(msg_details)
+    info = JSON.parse(msg_details)
     @log.debug "RESTARTWITHNEWGAME #{info[:type_req]}"
     case info[:type_req]
     when :create

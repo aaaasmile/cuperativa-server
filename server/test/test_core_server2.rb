@@ -3,29 +3,26 @@
 
 $:.unshift File.dirname(__FILE__)
 
-require 'rubygems'
-require 'test/unit'
-require 'log4r'
-require 'yaml'
-require 'test_common'
+require "rubygems"
+require "test/unit"
+require "log4r"
+require "yaml"
+require "test_common"
 
-
-PATH_TO_SERVER = File.expand_path(File.dirname(__FILE__) + '/..')
-require File.join( PATH_TO_SERVER, 'cup_serv_core')
+PATH_TO_SERVER = File.expand_path(File.dirname(__FILE__) + "/..")
+require File.join(PATH_TO_SERVER, "cup_serv_core")
 
 include Log4r
 
 ##
-# Test suite for testing 
+# Test suite for testing
 class Test_CupServerCore2 < Test::Unit::TestCase
-  
-  
   def setup
     @log = Log4r::Logger.new("serv_main")
     @server = MyGameServer::CuperativaServer.instance
     @server.reset_server
   end
-  
+
   ######################################### TEST CASES ########################
 =begin  
   ##
@@ -76,7 +73,7 @@ class Test_CupServerCore2 < Test::Unit::TestCase
     ver_prog = ver_arr
     net_prot_ver = [4, 1 ]
     info_client = [nomeprog, ver_prog, net_prot_ver ]
-    msg_details = YAML.dump(info_client)
+    msg_details = JSON.generate(info_client)
     myconn.cmdh_update_req(msg_details)
     assert_match(/UPDATERESPTWO:--- \n:type: :nothing/, myconn.last_data_sent)
   end
@@ -98,7 +95,7 @@ class Test_CupServerCore2 < Test::Unit::TestCase
     ver_prog = ver_arr
     net_prot_ver = [4, 1 ]
     info_client = [nomeprog, ver_prog, net_prot_ver ]
-    msg_details = YAML.dump(info_client)
+    msg_details = JSON.generate(info_client)
     puts "Check server update with client: #{client_ver_str}"
     myconn.cmdh_update_req(msg_details)
     assert_match(/UPDATERESPTWO:--- \n:server: http/, myconn.last_data_sent)
@@ -146,9 +143,9 @@ class Test_CupServerCore2 < Test::Unit::TestCase
     myconn = FakeUserConn.new
     @server.accept_name?(myconn.user_name, myconn.user_passw, myconn)
     @server.pending_games_req_list(myconn)
-    
+
     myconn2 = FakeUserConn.new
-    myconn2.user_name = 'Igor1'
+    myconn2.user_name = "Igor1"
     @server.accept_name?(myconn2.user_name, myconn2.user_passw, myconn2)
     @server.pending_games_req_list(myconn2)
     #create 2 games
@@ -156,8 +153,7 @@ class Test_CupServerCore2 < Test::Unit::TestCase
     @server.pending_game_create(myconn, msg_details)
     @server.pending_game_create(myconn2, msg_details)
     # delete game
-    @server.pending_game_removereq(myconn, 2 )
+    @server.pending_game_removereq(myconn, 2)
     assert_match(/SRVERROR:2/, myconn.last_data_sent)
   end
-  
 end #Test_CupServerCore2

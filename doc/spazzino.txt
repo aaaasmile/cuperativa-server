@@ -57,15 +57,15 @@ pescata una sola carta
 L'interfaccia del nal_server_alg non necessita cambi.
 
 * def onalg_manoend(player_best, carte_prese_mano, punti_presi) end
-Viene già usato yaml.
+Viene già usato JSON.generate
 L'interfaccia del nal_server_alg non necessita cambi.
 
 * def onalg_giocataend(best_pl_points) end
-Viene già usato yaml.
+Viene già usato JSON.generate
 L'interfaccia del nal_server_alg non necessita cambi.
 
 * def onalg_game_end(best_pl_segni) end
-Viene già usato yaml.
+Viene già usato JSON.generate
 L'interfaccia del nal_server_alg non necessita cambi.
 
 * def onalg_player_has_changed_brisc(player, card_briscola, card_on_hand) end

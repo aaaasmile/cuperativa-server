@@ -72,7 +72,7 @@ class GameCoreRecorder
     #fname_old_loc = File.expand_path(File.join( File.dirname(__FILE__) + "/../..",fname))
     fname_old_loc = fname
     File.open(fname_old_loc, "w") do |out|
-      YAML.dump(@info_match, out)
+      JSON.generate(@info_match, out)
     end
   end
 end #end GameCoreRecorder

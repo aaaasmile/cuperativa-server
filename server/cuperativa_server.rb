@@ -15,6 +15,7 @@ require "database/dbconnector"
 require "database/sendemail_errors"
 require "src/network/prot_buildcmd"
 require "viewgame_list"
+require "json"
 
 # Aggiungere un nuovo gioco
 # 5) modifica il server
@@ -181,7 +182,7 @@ module MyGameServer
         gam_inp.connection_removed(conn)
       end
       # inform all lobby players that are monitoring user data
-      str_removedet = "#{conn.user_name}"
+      str_removedet = JSON.generate({ :name => conn.user_name })
       msg = build_cmd(:user_removed, str_removedet)
       @subscribed_userdata_list.values.each { |conn| conn.send_data msg }
 

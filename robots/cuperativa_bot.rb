@@ -146,7 +146,7 @@ class CuperativaBot
     if @app_settings[:log_level] == :develop
       log_debug
     end
-    #puts YAML.dump(@settings_default)
+    #puts JSON.generate(@settings_default)
     @join_game = @app_settings[:join_curr_game]
     @game_bot_name = @app_settings[:game_bot_classname]
     # load option on supported games
@@ -439,7 +439,7 @@ class CuperativaBot
   # Save bot settings to the yaml file. Develop purpose.
   def save_settings
     File.open(@settings_filename, "w") do |out|
-      YAML.dump(@app_settings, out)
+      JSON.generate(@app_settings, out)
     end
     @log.debug "Settings saved into #{@settings_filename}"
   end

@@ -4,11 +4,12 @@ $:.unshift File.dirname(__FILE__)
 $:.unshift File.dirname(__FILE__) + "/.."
 
 require "rubygems"
-require "log4r"
+require "lib/log4r"
 require "pg_item"
 require "list_cup_common"
 require "src/network/prot_buildcmd"
 require "src/network/prot_parsmsg"
+require "json"
 
 # supported games
 require "nal_games/nal_srv_mariazza"
@@ -196,7 +197,7 @@ module MyGameServer
       if @pg_list.size == 0
         cmd_det = create_hash_forlist2(type_list, slice_nr, :last, arr_pgs)
         # send an empty list
-        conn.send_data(build_cmd(:list2, YAML.dump(cmd_det)))
+        conn.send_data(build_cmd(:list2, JSON.generate(cmd_det)))
         return
       end
 
@@ -207,11 +208,11 @@ module MyGameServer
         if count >= num_pg
           # last item in the list, send it
           cmd_det = create_hash_forlist2(type_list, slice_nr, :last, arr_pgs)
-          conn.send_data(build_cmd(:list2, YAML.dump(cmd_det)))
+          conn.send_data(build_cmd(:list2, JSON.generate(cmd_det)))
         elsif (count % step) == 0
           # reach the maximum block, send records in the slice
           cmd_det = create_hash_forlist2(type_list, slice_nr, :inlist, arr_pgs)
-          conn.send_data(build_cmd(:list2, YAML.dump(cmd_det)))
+          conn.send_data(build_cmd(:list2, JSON.generate(cmd_det)))
 
           arr_pgs = []
           slice_nr += 1
@@ -227,7 +228,7 @@ module MyGameServer
       det = create_hash_forpgadd2(pg_index, pgi)
       typelist = :pgamelist
       info = create_hash_forlist2addremove(typelist, det)
-      info_yaml = YAML.dump(info)
+      info_yaml = JSON.generate(info)
       msg = build_cmd(:list2_add, info_yaml)
       @subscribed_pg_user_list.values.each { |conn| conn.send_data msg }
     end
@@ -240,7 +241,7 @@ module MyGameServer
       typelist = :pgamelist
       det = { :index => pg_index.to_i }
       info = create_hash_forlist2addremove(typelist, det)
-      info_yaml = YAML.dump(info)
+      info_yaml = JSON.generate(info)
       msg = build_cmd(:list2_remove, info_yaml)
       @subscribed_pg_user_list.values.each { |conn| conn.send_data(msg) }
     end
@@ -361,7 +362,7 @@ module MyGameServer
     ##
     # Build the yaml message for join reject
     def build_msg_pg_join_reject2(pg_index, error_code)
-      info = YAML.dump({ :ix => pg_index, :err_code => error_code })
+      info = JSON.generate({ :ix => pg_index, :err_code => error_code })
       msg = build_cmd(:pg_join_reject2, info)
     end
 

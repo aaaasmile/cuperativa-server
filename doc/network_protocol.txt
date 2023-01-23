@@ -42,7 +42,7 @@ Usa il doppio empty per evitare di confondere il nickname empty
 
 Dalla versione 8.0 del protocollo abbia mo la stessa interfaccia in versione yaml
 C ------ pendig_games_req2 ----> S
-C <------ pg_list2:  YAML.dump{ ------- S
+C <------ pg_list2:  JSON.generate{ ------- S
              :type => :pgamelist | :userlist : | :gameviewlist
              :slice => 0...N
              :slice_state => :last | :inlist
@@ -106,7 +106,7 @@ pg_create descritto sotto):
 C <---------- pg_add: 35, pioppa,mariazza,<vittoria 41, 1 segno> ------ S 
 
 Dalla versione 8.0 pg_add diventa obsoleto
-C <-------- pg_add2: YAML.dump({              ------------------ S
+C <-------- pg_add2: JSON.generate({              ------------------ S
         :index => 35,
         :user => "Pioppa"
         :user_type => :user | :computer | :user_female
@@ -151,7 +151,7 @@ partecipare solo ad invito.
 
 Per semplificare il parser il messaggio pg_create diveta obsoleto dalla versione 
 del protocollo 8.0. Ora il messaggio pg_create diventa:
-C1 -------- pg_create2: YAML.dump({           :game => gioco_name,
+C1 -------- pg_create2: JSON.generate({           :game => gioco_name,
                                               :prive => {val =>true/false, pin =>"1234"}
                                               :class => true/false
                                               :opt_game => {<game specific option hash>}
@@ -206,7 +206,7 @@ Il server deve allora rispondere al richiedente con:
 
 Nella versione 8.0 il messaggio pg_join_reject di ritorno del server
 viene sostituito con 
-C2 (tender) <-------- pg_join_reject2: YAML.dump({:ix => pg_index, 
+C2 (tender) <-------- pg_join_reject2: JSON.generate({:ix => pg_index, 
                                          :err_code => error_code}) ----------- S
 Codici errori:
 1: indice gioco non trovato
@@ -268,7 +268,7 @@ Dalla versione 9.0 del protocollo del server i comandi delle liste vengono
 unificati in comandi generici LIST2
 
 a) LIST2 : invio della lista
-C <------ list2:  YAML.dump{ ------- S
+C <------ list2:  JSON.generate{ ------- S
              :type => :pgamelist | :userlist : | :gameviewlist
              :slice => 0...N
              :slice_state => :last | :inlist
@@ -276,13 +276,13 @@ C <------ list2:  YAML.dump{ ------- S
              }
 
 b) LIST2_ADD
-C <------ list2_add:  YAML.dump{ ------- S
+C <------ list2_add:  JSON.generate{ ------- S
              :type => :pgamelist | :userlist : | :gameviewlist
              :detail => {L'hash è lo stesso è specifico del tipo di lista}
              }
 
 c) LIST2_REMOVE
-C <------ list2_remove:  YAML.dump{ ------- S
+C <------ list2_remove:  JSON.generate{ ------- S
              :type => :pgamelist | :userlist : | :gameviewlist
              :detail => {L'hash è lo stesso è specifico del tipo di lista}
              }
@@ -290,7 +290,7 @@ C <------ list2_remove:  YAML.dump{ ------- S
 
 5.5) Spettatori
 
-C2 -------- game_view: YAML.dump({
+C2 -------- game_view: JSON.generate({
                 :cmd => :start_view | :stop_view | :req_list | :serv_resp
                 :index => index,
                 :resp_detail => {:result => {:ok | :failure}, :erro_info => error_index}
@@ -341,7 +341,7 @@ Il server notifica che un giocatore che era seduto al tavolo lo ha lasciato
 
 6.1) rivincita ad un altro gioco
 
-C1 -------- restart_withanewgame: YAML.dump({ :type_req => :create | :resp | :challenge | :join | :decline
+C1 -------- restart_withanewgame: JSON.generate({ :type_req => :create | :resp | :challenge | :join | :decline
                                      :resp_code => :ok_create | :reject_create | :join_ok | :join_declined
                                               :detail => {
                                                 :index => index
@@ -405,7 +405,7 @@ server.
   NAL_Server_Algorithm in modo da mandare i messaggi sul socket nel modo qua sotto
   indicato.
     
-    onalg_new_match: YAML.dump([gioco_name, [players], {options}])
+    onalg_new_match: JSON.generate([gioco_name, [players], {options}])
        onalg_new_match viene usato in modo differente dall'interfaccia offline
        dove compaiono solo i nomi dei giocatori. I parametri aggiunti servono
        per sopperire alle info che vengono date a gfx al momento dello start.
@@ -414,14 +414,14 @@ server.
        caso non hanno senso
     onalg_new_giocata: carte1, carte2,...carte5, briscola
     onalg_newmano: login_name
-    onalg_manoend: YAML.dump(player_best.name, carte_prese_mano, punti_presi) 
+    onalg_manoend: JSON.generate(player_best.name, carte_prese_mano, punti_presi) 
     onalg_pesca_carta: c1
-    onalg_giocataend: YAML.dump(best_pl_points) 
-    onalg_game_end: YAML.dump(best_pl_segni)
+    onalg_giocataend: JSON.generate(best_pl_points) 
+    onalg_game_end: JSON.generate(best_pl_segni)
     onalg_have_to_play:  # in questo caso, siccome la struttura command_decl_avail
                          # è complessa ho optato per 
-                         # YAML.dump([player.name, command_decl_avail])
-                         # per ricevere si usa YAML::load. Da notare che in un 1K
+                         # JSON.generate([player.name, command_decl_avail])
+                         # per ricevere si usa JSON.parse. Da notare che in un 1K
                          # si possono mandare più di 20 comandi
     onalg_player_has_changed_brisc: login_player, card_briscola, card_on_hand
     onalg_player_has_played: login_player, lbl_card
@@ -429,14 +429,14 @@ server.
     onalg_player_has_getpoints: login_player,  points
     onalg_player_cardsnot_allowed: login_player, carte1, carte2, ....
     onalg_player_has_taken: login_player, carte1, carte2, ....
-    onalg_gameinfo: YAML.dump({:deckcard => :_Ab })
-	onalg_generic: YAML.dump([:method_name, {...arguments}])
+    onalg_gameinfo: JSON.generate({:deckcard => :_Ab })
+	onalg_generic: JSON.generate([:method_name, {...arguments}])
 
 == Client update ==
 
 Quando viene riconosciuta una versione del server attuale rispetto a quella del client,
 il client richiede al server se esiste per il client un pacchetto update.
-C -------- update_req: YAML.dump(nomeprog, versprog, verprotcoll )   -----------> S
+C -------- update_req: JSON.generate(nomeprog, versprog, verprotcoll )   -----------> S
 nomeprog è il nome del programa client (ex Cuperativa), versprog è il protocollo
 espresso come array di tre interi (ex 0.5.4), verprotcoll è la versione del protocollo network
 come array di 2 interi (ex: 3,2)
@@ -460,7 +460,7 @@ platform.
 Siccome la risposta update_resp è troppo scarna e non si può aggiornare
 un client già pubblicato, ho usato un' altra risposta aggiuntiva con la quale un client aggiornato
 può meglio inserire le informazioni per l'aggiornamento:
-C <-------- update_resp2: YAML.dump({:type => typesym,
+C <-------- update_resp2: JSON.generate({:type => typesym,
                                      :server => serverstr, 
                                      :file => file_pack_str, 
                                      :size => sizestr,
@@ -483,7 +483,7 @@ l'utente era seduto ad un tavolo come giocatore. Se questo accade il server
 informa l'utente che ha una partita in corso e che la deve riprendere sia per
 giocarla fino in fondo che per abbandonarla.
 
-C <------------ player_reconnect  YAML.dump({:cmd => :game_in_progress}) ---- S 
+C <------------ player_reconnect  JSON.generate({:cmd => :game_in_progress}) ---- S 
 Questo messaggio viene mandato al posto di :login_ok anche se è 
 implicito che il login abbia avuto successo.
 A questo punto il client ha bisogno di ripristinare lo stato della partita.
@@ -501,7 +501,7 @@ con un si, a queso punto è chiaro che abbandona la partita perdendola.
 Con meno giocatori il robot abbandona la partita, invece deve fare
 richiesta per avere la partita vinta.
 
-C ------------ player_request  YAML.dump({:cmd => :assign_gamewin, :det => :opponent_leaved | timeout}) ----> S 
+C ------------ player_request  JSON.generate({:cmd => :assign_gamewin, :det => :opponent_leaved | timeout}) ----> S 
 
 	
 
