@@ -14,6 +14,7 @@ require "thread"
 require "prot_parsmsg"
 require "prot_buildcmd"
 require "json"
+require "msg_incoming"
 
 #module GuiClientNet
 
@@ -253,8 +254,7 @@ class ControlNetConnection
   def background_read
     @log.debug "Background read start"
     begin
-      frame_args = { :decoded => false }
-      @frame_incoming = WebSocket::Frame::Incoming::Client.new(frame_args) # TODO parse the incoming json
+      @frame_incoming = MsgIncoming.new({ :decoded => false })
 
       while true
         #dat = @socket_srv.gets
@@ -266,21 +266,20 @@ class ControlNetConnection
           p @socket_srv.getc
           break
         end
-        p [:c, recv_data]
+        #p [:c, recv_data]
         @frame_incoming << recv_data
-        while payload_decoded = @frame_incoming.next
+        if payload_decoded = @frame_incoming.next
           #p [:decode_next, payload_decoded]
-          if payload_decoded.type == :ping
-            #@socket_srv.write(frame_pong.to_s)
-            #@log.debug "Ping - respond with pong"
-          else
-            @log.debug "<server> #{payload_decoded.data}" if @server_msg_aredebugged
-            parse_server_message(JSON.parse(payload_decoded.data))
-          end
+          @log.debug "<server> #{payload_decoded.data}" if @server_msg_aredebugged
+          parse_server_message(JSON.parse(payload_decoded.data))
+          @frame_incoming.clear
         end
       end
+    rescue => detail
+      @log.error "socket read end: (#{$!})"
+      @log.error detail.backtrace.join("\n")
     rescue
-      @log.warn "socket read end: (#{$!})"
+      @log.error "something wrong on read: (#{$!})"
     ensure
       @log.debug "Background read terminated"
       @socket_srv = nil
@@ -484,18 +483,14 @@ class ControlNetConnection
     end
   end
 
-  ##
-  # Parse  message from server
-  # Q: Trouble if you receive 2 or more commands in the same message?
-  # R: I think no, because the socket.puts split the message after \n
-  # What happens for such strings:
-  # "--- \n- ospite1\n- []\r\n". Resp: all OK
-  def parse_server_message(message)
-    if message =~ /#{ProtCommandConstants::CRLF}/
+  def parse_server_message(message_json)
+    #p message_json
+    #if message =~ /#{ProtCommandConstants::CRLF}/
+    if message_json
       # command ready to be parsed
       srv_message = @accumulated_msg
       @accumulated_msg = ""
-      srv_message += message
+      srv_message += message_json
       # queue it
       val_susp = false
       @mutex_srvmsg.synchronize {
